@@ -41,78 +41,32 @@ type alias Model =
     , zone : Zone
     , page : Int
     , tags : Data (List Tag)
-    , activeTab : Tab
     , entryDraft : Maybe EntryContent
     , entries : Dict Int EntryContent
     }
 
 
-type Tab
-    = FeedFor User
-    | Global
-    | TagFilter Tag
-
-
 init : Shared.Model -> ( Model, Cmd Msg )
 init shared =
     let
-        activeTab : Tab
-        activeTab =
-            shared.user
-                |> Maybe.map FeedFor
-                |> Maybe.withDefault Global
-
         model : Model
         model =
             { listing = Api.Data.Loading
             , zone = Time.utc
             , page = 1
             , tags = Api.Data.Loading
-            , activeTab = activeTab
             , entryDraft = Nothing
             , entries = Dict.empty
             }
     in
     ( model
     , Cmd.batch
-        [ fetchArticlesForTab shared model
-        , Task.perform GotZone Time.here
+        [ Task.perform GotZone Time.here
         , GetTags_Home_ |> sendToBackend
         , Home GetEntries |> sendToBackend
         , Home GetDraft |> sendToBackend
         ]
     )
-
-
-fetchArticlesForTab :
-    Shared.Model
-    ->
-        { model
-            | page : Int
-            , activeTab : Tab
-        }
-    -> Cmd Msg
-fetchArticlesForTab shared model =
-    case model.activeTab of
-        Global ->
-            ArticleList_Home_
-                { filters = Filters.create
-                , page = model.page
-                }
-                |> sendToBackend
-
-        FeedFor user ->
-            ArticleFeed_Home_
-                { page = model.page
-                }
-                |> sendToBackend
-
-        TagFilter tag ->
-            ArticleList_Home_
-                { filters = Filters.create |> Filters.withTag tag
-                , page = model.page
-                }
-                |> sendToBackend
 
 
 
@@ -122,7 +76,6 @@ fetchArticlesForTab shared model =
 type Msg
     = GotArticles (Data Api.Article.Listing)
     | GotTags (Data (List Tag))
-    | SelectedTab Tab
     | ClickedFavorite User Article
     | ClickedUnfavorite User Article
     | ClickedPage Int
@@ -150,20 +103,6 @@ update shared msg model =
             , Cmd.none
             )
 
-        SelectedTab tab ->
-            let
-                newModel : Model
-                newModel =
-                    { model
-                        | activeTab = tab
-                        , listing = Api.Data.Loading
-                        , page = 1
-                    }
-            in
-            ( newModel
-            , fetchArticlesForTab shared newModel
-            )
-
         ClickedFavorite user article ->
             ( model
             , ArticleFavorite_Home_
@@ -189,9 +128,7 @@ update shared msg model =
                         , page = page_
                     }
             in
-            ( newModel
-            , fetchArticlesForTab shared newModel
-            )
+            ( newModel, Cmd.none )
 
         UpdatedArticle (Api.Data.Success article) ->
             ( { model
@@ -261,77 +198,7 @@ view shared model =
                                 entry
                         )
                     |> Layout.column []
-                , div [ class "row" ]
-                    [ div [ class "col-md-9" ] <|
-                        (viewTabs shared model
-                            :: Components.ArticleList.view
-                                { user = shared.user
-                                , articleListing = model.listing
-                                , onFavorite = ClickedFavorite
-                                , onUnfavorite = ClickedUnfavorite
-                                , onPageClick = ClickedPage
-                                }
-                        )
-                    , div [ class "col-md-3" ] [ viewTags model.tags ]
-                    ]
                 ]
             ]
         ]
     }
-
-
-viewTabs :
-    Shared.Model
-    -> { model | activeTab : Tab }
-    -> Html Msg
-viewTabs shared model =
-    div [ class "feed-toggle" ]
-        [ ul [ class "nav nav-pills outline-active" ]
-            [ Utils.Maybe.view shared.user <|
-                \user ->
-                    li [ class "nav-item" ]
-                        [ button
-                            [ class "nav-link"
-                            , classList [ ( "active", model.activeTab == FeedFor user ) ]
-                            , Events.onClick (SelectedTab (FeedFor user))
-                            ]
-                            [ text "Your Feed" ]
-                        ]
-            , li [ class "nav-item" ]
-                [ button
-                    [ class "nav-link"
-                    , classList [ ( "active", model.activeTab == Global ) ]
-                    , Events.onClick (SelectedTab Global)
-                    ]
-                    [ text "Global Feed" ]
-                ]
-            , case model.activeTab of
-                TagFilter tag ->
-                    li [ class "nav-item" ] [ a [ class "nav-link active" ] [ text ("#" ++ tag) ] ]
-
-                _ ->
-                    text ""
-            ]
-        ]
-
-
-viewTags : Data (List Tag) -> Html Msg
-viewTags data =
-    case data of
-        Api.Data.Success tags ->
-            div [ class "sidebar" ]
-                [ p [] [ text "Popular Tags" ]
-                , div [ class "tag-list" ] <|
-                    List.map
-                        (\tag ->
-                            button
-                                [ class "tag-pill tag-default"
-                                , Events.onClick (SelectedTab (TagFilter tag))
-                                ]
-                                [ text tag ]
-                        )
-                        tags
-                ]
-
-        _ ->
-            text ""

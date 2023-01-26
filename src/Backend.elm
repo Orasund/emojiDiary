@@ -211,45 +211,6 @@ updateFromFrontend sessionId clientId msg model =
             in
             send (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotTags (Success allTags))))
 
-        ArticleList_Home_ { filters, page } ->
-            let
-                articleList =
-                    getListing model sessionId filters page
-            in
-            send (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotArticles (Success articleList))))
-
-        ArticleFeed_Home_ { page } ->
-            let
-                userM =
-                    model |> getSessionUser sessionId
-
-                articleList =
-                    case userM of
-                        Just user ->
-                            let
-                                filtered =
-                                    model.articles
-                                        |> Dict.filter (\slug article -> List.member article.userId user.following)
-
-                                enriched =
-                                    filtered |> Dict.map (\slug article -> loadArticleFromStore model userM article)
-
-                                grouped =
-                                    enriched |> Dict.values |> List.greedyGroupsOf Api.Article.itemsPerPage
-
-                                articles =
-                                    grouped |> List.getAt (page - 1) |> Maybe.withDefault []
-                            in
-                            { articles = articles
-                            , page = page
-                            , totalPages = grouped |> List.length
-                            }
-
-                        Nothing ->
-                            { articles = [], page = 0, totalPages = 0 }
-            in
-            send (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotArticles (Success articleList))))
-
         ArticleList_Username_ { filters, page } ->
             let
                 articleList =

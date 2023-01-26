@@ -20,8 +20,6 @@ type ToBackend
     = SignedOut User
       -- Req/resp paired messages
     | GetTags_Home_
-    | ArticleList_Home_ { filters : Filters, page : Int }
-    | ArticleFeed_Home_ { page : Int }
     | ArticleList_Username_ { filters : Filters, page : Int }
     | ArticleGet_Editor__ArticleSlug_ { slug : String }
     | ArticleGet_Article__Slug_ { slug : String }
