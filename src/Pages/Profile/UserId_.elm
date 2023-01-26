@@ -1,17 +1,16 @@
-module Pages.Profile.Username_ exposing (Model, Msg(..), page)
+module Pages.Profile.UserId_ exposing (Model, Msg(..), page)
 
 import Api.Article exposing (Article)
-import Api.Article.Filters as Filters
 import Api.Data exposing (Data)
 import Api.Profile exposing (Profile)
-import Api.User exposing (User)
+import Api.User exposing (User, UserId)
 import Bridge exposing (..)
 import Components.ArticleList
 import Components.IconButton as IconButton
 import Components.NotFound
 import Data.Entry exposing (EntryContent)
 import Dict exposing (Dict)
-import Gen.Params.Profile.Username_ exposing (Params)
+import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, src)
 import Html.Events as Events
@@ -40,7 +39,7 @@ page shared req =
 
 
 type alias Model =
-    { username : String
+    { userId : UserId
     , profile : Data Profile
     , listing : Data Api.Article.Listing
     , selectedTab : Tab
@@ -56,7 +55,11 @@ type Tab
 
 init : Shared.Model -> Request.With Params -> ( Model, Cmd Msg )
 init shared { params } =
-    ( { username = params.username
+    let
+        userId =
+            String.toInt params.userId |> Maybe.withDefault -1
+    in
+    ( { userId = userId
       , profile = Api.Data.Loading
       , listing = Api.Data.Loading
       , selectedTab = MyArticles
@@ -65,34 +68,14 @@ init shared { params } =
       }
     , Cmd.batch
         [ ProfileGet_Profile__Username_
-            { username = params.username
+            { userId = String.toInt params.userId |> Maybe.withDefault -1
             }
             |> sendToBackend
         , GetEntriesOfProfile
-            |> AtProfile { username = params.username }
+            |> AtProfile { userId = userId }
             |> sendToBackend
-        , fetchArticlesBy params.username 1
         ]
     )
-
-
-fetchArticlesBy : String -> Int -> Cmd Msg
-fetchArticlesBy username page_ =
-    ArticleList_Username_
-        { page = page_
-        , filters = Filters.create |> Filters.withAuthor username
-        }
-        |> sendToBackend
-
-
-fetchArticlesFavoritedBy : String -> Int -> Cmd Msg
-fetchArticlesFavoritedBy username page_ =
-    ArticleList_Username_
-        { page = page_
-        , filters =
-            Filters.create |> Filters.favoritedBy username
-        }
-        |> sendToBackend
 
 
 
@@ -106,8 +89,6 @@ type Msg
     | ClickedFavorite User Article
     | ClickedUnfavorite User Article
     | UpdatedArticle (Data Article)
-    | ClickedFollow User Profile
-    | ClickedUnfollow User Profile
     | ClickedPage Int
     | GotEntries (List ( Posix, EntryContent ))
 
@@ -118,22 +99,6 @@ update shared msg model =
         GotProfile profile ->
             ( { model | profile = profile }
             , Cmd.none
-            )
-
-        ClickedFollow user profile ->
-            ( model
-            , ProfileFollow_Profile__Username_
-                { username = profile.username
-                }
-                |> sendToBackend
-            )
-
-        ClickedUnfollow user profile ->
-            ( model
-            , ProfileUnfollow_Profile__Username_
-                { username = profile.username
-                }
-                |> sendToBackend
             )
 
         GotArticles listing ->
@@ -147,7 +112,7 @@ update shared msg model =
                 , listing = Api.Data.Loading
                 , page = 1
               }
-            , fetchArticlesBy model.username 1
+            , Cmd.none
             )
 
         Clicked FavoritedArticles ->
@@ -156,7 +121,7 @@ update shared msg model =
                 , listing = Api.Data.Loading
                 , page = 1
               }
-            , fetchArticlesFavoritedBy model.username 1
+            , Cmd.none
             )
 
         ClickedFavorite user article ->
@@ -176,23 +141,11 @@ update shared msg model =
             )
 
         ClickedPage page_ ->
-            let
-                fetch : String -> Int -> Cmd Msg
-                fetch =
-                    case model.selectedTab of
-                        MyArticles ->
-                            fetchArticlesBy
-
-                        FavoritedArticles ->
-                            fetchArticlesFavoritedBy
-            in
             ( { model
                 | listing = Api.Data.Loading
                 , page = page_
               }
-            , fetch
-                model.username
-                page_
+            , Cmd.none
             )
 
         UpdatedArticle (Api.Data.Success article) ->
@@ -253,27 +206,6 @@ viewProfile shared profile model =
                             , h4 [] [ text profile.username ]
                             , Utils.Maybe.view profile.bio
                                 (\bio -> p [] [ text bio ])
-                            , if isViewingOwnProfile then
-                                text ""
-
-                              else
-                                Utils.Maybe.view shared.user <|
-                                    \user ->
-                                        if profile.following then
-                                            IconButton.view
-                                                { color = IconButton.FilledGray
-                                                , icon = IconButton.Plus
-                                                , label = "Unfollow " ++ profile.username
-                                                , onClick = ClickedUnfollow user profile
-                                                }
-
-                                        else
-                                            IconButton.view
-                                                { color = IconButton.OutlinedGray
-                                                , icon = IconButton.Plus
-                                                , label = "Follow " ++ profile.username
-                                                , onClick = ClickedFollow user profile
-                                                }
                             ]
                         ]
                     ]

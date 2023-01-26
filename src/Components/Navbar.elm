@@ -23,7 +23,7 @@ view options =
                         List.concat
                             [ List.map (viewLink options.currentRoute) <|
                                 [ ( "Home", Route.Home_ )
-                                , ( "Profile", Route.Profile__Username_ { username = user.username } )
+                                , ( "Profile", Route.Profile__UserId_ { userId = String.fromInt user.id } )
                                 , ( "Settings", Route.Settings )
                                 ]
                             , [ li [ class "nav-item" ]

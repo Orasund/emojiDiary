@@ -9,7 +9,7 @@ import Gen.Params.NotFound
 import Gen.Params.Register
 import Gen.Params.Settings
 import Gen.Params.Article.Slug_
-import Gen.Params.Profile.Username_
+import Gen.Params.Profile.UserId_
 import Gen.Model as Model
 import Gen.Msg as Msg
 import Gen.Route as Route exposing (Route)
@@ -20,7 +20,7 @@ import Pages.NotFound
 import Pages.Register
 import Pages.Settings
 import Pages.Article.Slug_
-import Pages.Profile.Username_
+import Pages.Profile.UserId_
 import Request exposing (Request)
 import Shared
 import Task
@@ -57,8 +57,8 @@ init route =
         Route.Article__Slug_ params ->
             pages.article__slug_.init params
     
-        Route.Profile__Username_ params ->
-            pages.profile__username_.init params
+        Route.Profile__UserId_ params ->
+            pages.profile__userId_.init params
 
 
 update : Msg -> Model -> Shared.Model -> Url -> Key -> ( Model, Effect Msg )
@@ -79,8 +79,8 @@ update msg_ model_ =
         ( Msg.Article__Slug_ msg, Model.Article__Slug_ params model ) ->
             pages.article__slug_.update params msg model
     
-        ( Msg.Profile__Username_ msg, Model.Profile__Username_ params model ) ->
-            pages.profile__username_.update params msg model
+        ( Msg.Profile__UserId_ msg, Model.Profile__UserId_ params model ) ->
+            pages.profile__userId_.update params msg model
 
         _ ->
             \_ _ _ -> ( model_, Effect.none )
@@ -110,8 +110,8 @@ view model_ =
         Model.Article__Slug_ params model ->
             pages.article__slug_.view params model
     
-        Model.Profile__Username_ params model ->
-            pages.profile__username_.view params model
+        Model.Profile__UserId_ params model ->
+            pages.profile__userId_.view params model
 
 
 subscriptions : Model -> Shared.Model -> Url -> Key -> Sub Msg
@@ -138,8 +138,8 @@ subscriptions model_ =
         Model.Article__Slug_ params model ->
             pages.article__slug_.subscriptions params model
     
-        Model.Profile__Username_ params model ->
-            pages.profile__username_.subscriptions params model
+        Model.Profile__UserId_ params model ->
+            pages.profile__userId_.subscriptions params model
 
 
 
@@ -153,7 +153,7 @@ pages :
     , register : Bundle Gen.Params.Register.Params Pages.Register.Model Pages.Register.Msg
     , settings : Bundle Gen.Params.Settings.Params Pages.Settings.Model Pages.Settings.Msg
     , article__slug_ : Bundle Gen.Params.Article.Slug_.Params Pages.Article.Slug_.Model Pages.Article.Slug_.Msg
-    , profile__username_ : Bundle Gen.Params.Profile.Username_.Params Pages.Profile.Username_.Model Pages.Profile.Username_.Msg
+    , profile__userId_ : Bundle Gen.Params.Profile.UserId_.Params Pages.Profile.UserId_.Model Pages.Profile.UserId_.Msg
     }
 pages =
     { home_ = bundle Pages.Home_.page Model.Home_ Msg.Home_
@@ -162,7 +162,7 @@ pages =
     , register = bundle Pages.Register.page Model.Register Msg.Register
     , settings = bundle Pages.Settings.page Model.Settings Msg.Settings
     , article__slug_ = bundle Pages.Article.Slug_.page Model.Article__Slug_ Msg.Article__Slug_
-    , profile__username_ = bundle Pages.Profile.Username_.page Model.Profile__Username_ Msg.Profile__Username_
+    , profile__userId_ = bundle Pages.Profile.UserId_.page Model.Profile__UserId_ Msg.Profile__UserId_
     }
 
 

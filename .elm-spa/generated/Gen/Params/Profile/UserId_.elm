@@ -1,10 +1,10 @@
-module Gen.Params.Profile.Username_ exposing (Params, parser)
+module Gen.Params.Profile.UserId_ exposing (Params, parser)
 
 import Url.Parser as Parser exposing ((</>), Parser)
 
 
 type alias Params =
-    { username : String }
+    { userId : String }
 
 
 parser =

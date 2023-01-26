@@ -6,14 +6,14 @@ import Gen.Params.NotFound
 import Gen.Params.Register
 import Gen.Params.Settings
 import Gen.Params.Article.Slug_
-import Gen.Params.Profile.Username_
+import Gen.Params.Profile.UserId_
 import Pages.Home_
 import Pages.Login
 import Pages.NotFound
 import Pages.Register
 import Pages.Settings
 import Pages.Article.Slug_
-import Pages.Profile.Username_
+import Pages.Profile.UserId_
 
 
 type Model
@@ -24,5 +24,5 @@ type Model
     | Register Gen.Params.Register.Params Pages.Register.Model
     | Settings Gen.Params.Settings.Params Pages.Settings.Model
     | Article__Slug_ Gen.Params.Article.Slug_.Params Pages.Article.Slug_.Model
-    | Profile__Username_ Gen.Params.Profile.Username_.Params Pages.Profile.Username_.Model
+    | Profile__UserId_ Gen.Params.Profile.UserId_.Params Pages.Profile.UserId_.Model
 

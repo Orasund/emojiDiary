@@ -73,8 +73,6 @@ type Msg
     | ClickedDeleteArticle User Article
     | DeletedArticle (Data Article)
     | GotAuthor (Data Profile)
-    | ClickedFollow User Profile
-    | ClickedUnfollow User Profile
     | GotComments (Data (List Comment))
     | ClickedDeleteComment User Article Comment
     | DeletedComment (Data Int)
@@ -133,22 +131,6 @@ update req msg model =
             in
             ( { model | article = Api.Data.map updateAuthor model.article }
             , Cmd.none
-            )
-
-        ClickedFollow user profile ->
-            ( model
-            , ProfileFollow_Article__Slug_
-                { username = profile.username
-                }
-                |> sendToBackend
-            )
-
-        ClickedUnfollow user profile ->
-            ( model
-            , ProfileUnfollow_Article__Slug_
-                { username = profile.username
-                }
-                |> sendToBackend
             )
 
         GotComments comments ->
@@ -295,22 +277,7 @@ viewControls article user =
         ]
 
     else
-        [ if article.author.following then
-            IconButton.view
-                { color = IconButton.FilledGray
-                , icon = IconButton.Plus
-                , label = "Unfollow " ++ article.author.username
-                , onClick = ClickedUnfollow user article.author
-                }
-
-          else
-            IconButton.view
-                { color = IconButton.OutlinedGray
-                , icon = IconButton.Plus
-                , label = "Follow " ++ article.author.username
-                , onClick = ClickedFollow user article.author
-                }
-        , if article.favorited then
+        [ if article.favorited then
             IconButton.view
                 { color = IconButton.FilledGreen
                 , icon = IconButton.Heart

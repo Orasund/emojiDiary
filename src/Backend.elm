@@ -1,10 +1,9 @@
 module Backend exposing (..)
 
 import Api.Article exposing (Article, ArticleStore, Slug)
-import Api.Article.Filters as Filters exposing (Filters(..))
 import Api.Data exposing (Data(..))
 import Api.Profile exposing (Profile)
-import Api.User exposing (Email, UserFull)
+import Api.User exposing (Email, UserFull, UserId)
 import Bridge exposing (..)
 import Data.Entry
 import Dict
@@ -15,7 +14,7 @@ import List.Extra as List
 import Pages.Article.Slug_
 import Pages.Home_
 import Pages.Login
-import Pages.Profile.Username_
+import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
 import Task
@@ -176,13 +175,6 @@ updateFromFrontend sessionId clientId msg model =
         SignedOut _ ->
             ( { model | sessions = model.sessions |> Dict.remove sessionId }, Cmd.none )
 
-        ArticleList_Username_ { filters, page } ->
-            let
-                articleList =
-                    getListing model sessionId filters page
-            in
-            send (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotArticles (Success articleList))))
-
         ArticleGet_Article__Slug_ { slug } ->
             let
                 res =
@@ -202,13 +194,13 @@ updateFromFrontend sessionId clientId msg model =
             favoriteArticle sessionId
                 slug
                 model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.UpdatedArticle r))))
+                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.UpdatedArticle r))))
 
         ArticleUnfavorite_Profile__Username_ { slug } ->
             unfavoriteArticle sessionId
                 slug
                 model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.UpdatedArticle r))))
+                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.UpdatedArticle r))))
 
         ArticleFavorite_Home_ { slug } ->
             favoriteArticle sessionId
@@ -264,36 +256,36 @@ updateFromFrontend sessionId clientId msg model =
             , send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.DeletedComment (Success commentId))))
             )
 
-        ProfileGet_Profile__Username_ { username } ->
+        ProfileGet_Profile__Username_ { userId } ->
             let
                 res =
-                    profileByUsername username model
+                    profileByUsername userId model
                         |> Maybe.map Success
                         |> Maybe.withDefault (Failure [ "user not found" ])
             in
-            send (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotProfile res)))
+            send (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile res)))
 
-        ProfileFollow_Profile__Username_ { username } ->
+        ProfileFollow_Profile__Username_ { userId } ->
             followUser sessionId
-                username
+                userId
                 model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotProfile r))))
+                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile r))))
 
-        ProfileUnfollow_Profile__Username_ { username } ->
+        ProfileUnfollow_Profile__Username_ { userId } ->
             unfollowUser sessionId
-                username
+                userId
                 model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotProfile r))))
+                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile r))))
 
-        ProfileFollow_Article__Slug_ { username } ->
+        ProfileFollow_Article__Slug_ { userId } ->
             followUser sessionId
-                username
+                userId
                 model
                 (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotAuthor r))))
 
-        ProfileUnfollow_Article__Slug_ { username } ->
+        ProfileUnfollow_Article__Slug_ { userId } ->
             unfollowUser sessionId
-                username
+                userId
                 model
                 (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotAuthor r))))
 
@@ -399,7 +391,7 @@ updateFromFrontend sessionId clientId msg model =
                         |> List.map (Tuple.mapFirst Time.millisToPosix)
                         |> (\entries ->
                                 ( model
-                                , send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotEntries entries)))
+                                , send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotEntries entries)))
                                 )
                            )
 
@@ -435,14 +427,11 @@ renewSession email sid cid =
     Time.now |> Task.perform (RenewSession email sid cid)
 
 
-getListing : Model -> SessionId -> Filters -> Int -> Api.Article.Listing
-getListing model sessionId (Filters { tag, author, favorited }) page =
+getListing : Model -> SessionId -> Int -> Api.Article.Listing
+getListing model sessionId page =
     let
         filtered =
             model.articles
-                |> Filters.byFavorite favorited model.users
-                |> Filters.byTag tag
-                |> Filters.byAuthor author model.users
 
         enriched =
             filtered |> Dict.map (\slug article -> loadArticleFromStore model (model |> getSessionUser sessionId) article)
@@ -524,17 +513,17 @@ unfavoriteArticle sessionId slug model toResponseCmd =
             ( model, toResponseCmd <| Failure [ "invalid session" ] )
 
 
-followUser : SessionId -> Email -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
-followUser sessionId email model toResponseCmd =
+followUser : SessionId -> UserId -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
+followUser sessionId userId model toResponseCmd =
     let
         res =
-            profileByEmail email model
+            profileByUsername userId model
                 |> Maybe.map (\a -> Success { a | following = True })
                 |> Maybe.withDefault (Failure [ "invalid user" ])
     in
     case model |> getSessionUser sessionId of
         Just user ->
-            ( case model.users |> Dict.find (\l u -> u.email == email) of
+            ( case model.users |> Dict.find (\l u -> u.id == userId) of
                 Just ( _, follow ) ->
                     model |> updateUser { user | following = (follow.id :: user.following) |> List.unique }
 
@@ -547,9 +536,9 @@ followUser sessionId email model toResponseCmd =
             ( model, toResponseCmd <| Failure [ "invalid session" ] )
 
 
-unfollowUser : SessionId -> Email -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
-unfollowUser sessionId email model toResponseCmd =
-    case model.users |> Dict.find (\k u -> u.email == email) of
+unfollowUser : SessionId -> UserId -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
+unfollowUser sessionId userId model toResponseCmd =
+    case model.users |> Dict.find (\k u -> u.id == userId) of
         Just ( _, followed ) ->
             let
                 res =
@@ -575,8 +564,8 @@ updateUser user model =
     { model | users = model.users |> Dict.update user.id (Maybe.map (always user)) }
 
 
-profileByUsername username model =
-    model.users |> Dict.find (\k u -> u.username == username) |> Maybe.map (Tuple.second >> Api.User.toProfile)
+profileByUsername userId model =
+    model.users |> Dict.find (\k u -> u.id == userId) |> Maybe.map (Tuple.second >> Api.User.toProfile)
 
 
 profileByEmail email model =

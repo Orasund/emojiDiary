@@ -10,7 +10,7 @@ import Gen.Params.NotFound
 import Gen.Params.Register
 import Gen.Params.Settings
 import Gen.Params.Article.Slug_
-import Gen.Params.Profile.Username_
+import Gen.Params.Profile.UserId_
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser)
 
@@ -22,7 +22,7 @@ type Route
     | Register
     | Settings
     | Article__Slug_ { slug : String }
-    | Profile__Username_ { username : String }
+    | Profile__UserId_ { userId : String }
 
 
 fromUrl : Url -> Route
@@ -38,7 +38,7 @@ routes =
     , Parser.map Register Gen.Params.Register.parser
     , Parser.map Settings Gen.Params.Settings.parser
     , Parser.map Article__Slug_ Gen.Params.Article.Slug_.parser
-    , Parser.map Profile__Username_ Gen.Params.Profile.Username_.parser
+    , Parser.map Profile__UserId_ Gen.Params.Profile.UserId_.parser
     ]
 
 
@@ -68,6 +68,6 @@ toHref route =
         Article__Slug_ params ->
             joinAsHref [ "article", params.slug ]
     
-        Profile__Username_ params ->
-            joinAsHref [ "profile", params.username ]
+        Profile__UserId_ params ->
+            joinAsHref [ "profile", params.userId ]
 
