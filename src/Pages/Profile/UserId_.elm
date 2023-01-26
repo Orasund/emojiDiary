@@ -42,15 +42,9 @@ type alias Model =
     { userId : UserId
     , profile : Data Profile
     , listing : Data Api.Article.Listing
-    , selectedTab : Tab
     , entries : List ( Posix, EntryContent )
     , page : Int
     }
-
-
-type Tab
-    = MyArticles
-    | FavoritedArticles
 
 
 init : Shared.Model -> Request.With Params -> ( Model, Cmd Msg )
@@ -62,7 +56,6 @@ init shared { params } =
     ( { userId = userId
       , profile = Api.Data.Loading
       , listing = Api.Data.Loading
-      , selectedTab = MyArticles
       , entries = []
       , page = 1
       }
@@ -85,7 +78,6 @@ init shared { params } =
 type Msg
     = GotProfile (Data Profile)
     | GotArticles (Data Api.Article.Listing)
-    | Clicked Tab
     | ClickedFavorite User Article
     | ClickedUnfavorite User Article
     | UpdatedArticle (Data Article)
@@ -103,24 +95,6 @@ update shared msg model =
 
         GotArticles listing ->
             ( { model | listing = listing }
-            , Cmd.none
-            )
-
-        Clicked MyArticles ->
-            ( { model
-                | selectedTab = MyArticles
-                , listing = Api.Data.Loading
-                , page = 1
-              }
-            , Cmd.none
-            )
-
-        Clicked FavoritedArticles ->
-            ( { model
-                | selectedTab = FavoritedArticles
-                , listing = Api.Data.Loading
-                , page = 1
-              }
             , Cmd.none
             )
 
@@ -210,53 +184,13 @@ viewProfile shared profile model =
                         ]
                     ]
                 ]
-
-        viewTabRow : Html Msg
-        viewTabRow =
-            div [ class "articles-toggle" ]
-                [ ul [ class "nav nav-pills outline-active" ]
-                    (List.map viewTab [ MyArticles, FavoritedArticles ])
-                ]
-
-        viewTab : Tab -> Html Msg
-        viewTab tab =
-            li [ class "nav-item" ]
-                [ button
-                    [ class "nav-link"
-                    , Events.onClick (Clicked tab)
-                    , classList [ ( "active", tab == model.selectedTab ) ]
-                    ]
-                    [ text
-                        (case tab of
-                            MyArticles ->
-                                "My Articles"
-
-                            FavoritedArticles ->
-                                "Favorited Articles"
-                        )
-                    ]
-                ]
     in
     div [ class "profile-page" ]
         [ viewUserInfo
-        , div [ class "container" ]
-            [ div [ class "row" ]
-                [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
-                    (viewTabRow
-                        :: Components.ArticleList.view
-                            { user = shared.user
-                            , articleListing = model.listing
-                            , onFavorite = ClickedFavorite
-                            , onUnfavorite = ClickedUnfavorite
-                            , onPageClick = ClickedPage
-                            }
-                    )
-                ]
-            , model.entries
-                |> List.map
-                    (\( posix, entry ) ->
-                        View.Entry.toHtml shared.zone posix entry
-                    )
-                |> Layout.column []
-            ]
+        , model.entries
+            |> List.map
+                (\( posix, entry ) ->
+                    View.Entry.toHtml shared.zone posix entry
+                )
+            |> Layout.column [ class "container" ]
         ]
