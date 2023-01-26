@@ -57,8 +57,8 @@ subscriptions : Model -> Sub BackendMsg
 subscriptions _ =
     let
         hour =
-            --60 * 1000
-            1000
+            --60 * 60 * 1000
+            60 * 1000
     in
     Sub.batch
         [ onConnect CheckSession
@@ -201,15 +201,8 @@ updateFromFrontend sessionId clientId msg model =
                         Failure [ "you do not have permission for this article" ]
     in
     case msg of
-        SignedOut user ->
+        SignedOut _ ->
             ( { model | sessions = model.sessions |> Dict.remove sessionId }, Cmd.none )
-
-        GetTags_Home_ ->
-            let
-                allTags =
-                    model.articles |> Dict.foldl (\slug article tags -> tags ++ article.tags) [] |> List.unique
-            in
-            send (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotTags (Success allTags))))
 
         ArticleList_Username_ { filters, page } ->
             let

@@ -1,23 +1,19 @@
 module Pages.Home_ exposing (Model, Msg(..), page)
 
 import Api.Article exposing (Article)
-import Api.Article.Filters as Filters
 import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
-import Components.ArticleList
 import Data.Entry exposing (EntryContent)
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (class, classList)
-import Html.Events as Events
+import Html.Attributes exposing (class)
 import Layout
 import Page
 import Request exposing (Request)
 import Shared
 import Task
 import Time exposing (Zone)
-import Utils.Maybe
 import View exposing (View)
 import View.Entry
 
@@ -40,7 +36,6 @@ type alias Model =
     { listing : Data Api.Article.Listing
     , zone : Zone
     , page : Int
-    , tags : Data (List Tag)
     , entryDraft : Maybe EntryContent
     , entries : Dict Int EntryContent
     }
@@ -54,7 +49,6 @@ init shared =
             { listing = Api.Data.Loading
             , zone = Time.utc
             , page = 1
-            , tags = Api.Data.Loading
             , entryDraft = Nothing
             , entries = Dict.empty
             }
@@ -62,7 +56,6 @@ init shared =
     ( model
     , Cmd.batch
         [ Task.perform GotZone Time.here
-        , GetTags_Home_ |> sendToBackend
         , Home GetEntries |> sendToBackend
         , Home GetDraft |> sendToBackend
         ]
@@ -75,7 +68,6 @@ init shared =
 
 type Msg
     = GotArticles (Data Api.Article.Listing)
-    | GotTags (Data (List Tag))
     | ClickedFavorite User Article
     | ClickedUnfavorite User Article
     | ClickedPage Int
@@ -95,11 +87,6 @@ update shared msg model =
     case msg of
         GotArticles listing ->
             ( { model | listing = listing }
-            , Cmd.none
-            )
-
-        GotTags tags ->
-            ( { model | tags = tags }
             , Cmd.none
             )
 
@@ -158,7 +145,11 @@ update shared msg model =
             , Cmd.none
             )
 
-        DraftUpdated entryDraft ->
+        DraftUpdated d ->
+            let
+                entryDraft =
+                    { d | content = String.slice 0 6 d.content }
+            in
             ( { model | entryDraft = Just entryDraft }
             , Home (Bridge.DraftUpdated entryDraft)
                 |> sendToBackend
