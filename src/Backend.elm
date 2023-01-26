@@ -35,7 +35,7 @@ app =
         { init = init
         , update = update
         , updateFromFrontend = updateFromFrontend
-        , subscriptions = \m -> onConnect CheckSession
+        , subscriptions = subscriptions
         }
 
 
@@ -45,9 +45,25 @@ init =
       , users = Dict.empty
       , articles = Dict.empty
       , comments = Dict.empty
+      , entries = Dict.empty
+      , drafts = Dict.empty
+      , hour = Time.millisToPosix 0
       }
     , Cmd.none
     )
+
+
+subscriptions : Model -> Sub BackendMsg
+subscriptions _ =
+    let
+        hour =
+            --60 * 1000
+            1000
+    in
+    Sub.batch
+        [ onConnect CheckSession
+        , Time.every hour HourPassed
+        ]
 
 
 update : BackendMsg -> Model -> ( Model, Cmd BackendMsg )
@@ -122,6 +138,31 @@ update msg model =
                     ( model
                     , sendToFrontend clientId (PageMsg (Gen.Msg.Editor (Pages.Editor.GotArticle (Failure [ "invalid session" ]))))
                     )
+
+        HourPassed currentTime ->
+            let
+                entries =
+                    model.drafts
+                        |> Dict.foldl
+                            (\userId ( posix, content ) ->
+                                Dict.update userId
+                                    (\maybe ->
+                                        maybe
+                                            |> Maybe.map (Dict.insert (Time.posixToMillis posix) content)
+                                            |> Maybe.withDefault (Dict.singleton (Time.posixToMillis posix) content)
+                                            |> Just
+                                    )
+                            )
+                            model.entries
+            in
+            ( { model
+                | hour = currentTime
+                , entries = entries
+                , drafts =
+                    Dict.empty
+              }
+            , broadcast (PageMsg (Gen.Msg.Home_ Pages.Home_.EntriesUpdated))
+            )
 
         NoOpBackendMsg ->
             ( model, Cmd.none )
@@ -388,7 +429,6 @@ updateFromFrontend sessionId clientId msg model =
                                 { id = Dict.size model.users
                                 , email = params.email
                                 , username = params.username
-                                , draft = Data.Entry.newDraft
                                 , bio = Nothing
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
@@ -429,7 +469,38 @@ updateFromFrontend sessionId clientId msg model =
         Home (DraftUpdated draft) ->
             case model |> getSessionUser sessionId of
                 Just user ->
-                    ( model |> updateUser { user | draft = draft }, Cmd.none )
+                    ( { model
+                        | drafts =
+                            model.drafts
+                                |> Dict.update user.id
+                                    (\maybe ->
+                                        if String.isEmpty draft.content then
+                                            Nothing
+
+                                        else
+                                            maybe
+                                                |> Maybe.map (Tuple.mapSecond (\_ -> draft))
+                                                |> Maybe.withDefault ( model.hour, draft )
+                                                |> Just
+                                    )
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        Home GetEntries ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    model.entries
+                        |> Dict.get user.id
+                        |> Maybe.withDefault Dict.empty
+                        |> (\entries ->
+                                ( model
+                                , send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotEntries entries)))
+                                )
+                           )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -437,7 +508,13 @@ updateFromFrontend sessionId clientId msg model =
         Home GetDraft ->
             case model |> getSessionUser sessionId of
                 Just user ->
-                    ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftUpdated user.draft))) )
+                    model.drafts
+                        |> Dict.get user.id
+                        |> Maybe.map Tuple.second
+                        |> Maybe.withDefault Data.Entry.newDraft
+                        |> (\draft ->
+                                ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftUpdated draft))) )
+                           )
 
                 Nothing ->
                     ( model, Cmd.none )

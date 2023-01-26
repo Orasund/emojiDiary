@@ -2,7 +2,7 @@ module Bridge exposing (..)
 
 import Api.Article.Filters exposing (Filters)
 import Api.User exposing (User)
-import Data.Entry exposing (EntryDraft)
+import Data.Entry exposing (EntryContent)
 import Lamdera
 
 
@@ -11,7 +11,8 @@ sendToBackend =
 
 
 type HomeToBackend
-    = DraftUpdated EntryDraft
+    = DraftUpdated EntryContent
+    | GetEntries
     | GetDraft
 
 

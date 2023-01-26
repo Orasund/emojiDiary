@@ -1,13 +1,16 @@
 module Data.Entry exposing (..)
 
+import Api.User exposing (UserId)
+import Time exposing (Posix)
 
-type alias EntryDraft =
+
+type alias EntryContent =
     { content : String
     , description : String
     }
 
 
-newDraft : EntryDraft
+newDraft : EntryContent
 newDraft =
     { content = ""
     , description = ""

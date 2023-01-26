@@ -6,7 +6,7 @@ import Api.User exposing (User, UserFull, UserId)
 import Bridge
 import Browser
 import Browser.Navigation exposing (Key)
-import Data.Entry exposing (EntryDraft)
+import Data.Entry exposing (EntryContent)
 import Dict exposing (Dict)
 import Gen.Pages as Pages
 import Lamdera exposing (ClientId, SessionId)
@@ -28,6 +28,9 @@ type alias BackendModel =
     , users : Dict Int UserFull
     , articles : Dict Slug ArticleStore
     , comments : Dict Slug (Dict Int Comment)
+    , drafts : Dict UserId ( Time.Posix, EntryContent )
+    , entries : Dict UserId (Dict Int EntryContent)
+    , hour : Time.Posix
     }
 
 
@@ -52,6 +55,7 @@ type BackendMsg
     | RenewSession UserId SessionId ClientId Time.Posix
     | ArticleCreated Time.Posix (Maybe UserFull) ClientId { title : String, description : String, tags : List String }
     | ArticleCommentCreated Time.Posix (Maybe UserFull) ClientId Slug { body : String }
+    | HourPassed Time.Posix
     | NoOpBackendMsg
 
 

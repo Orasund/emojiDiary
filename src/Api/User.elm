@@ -8,7 +8,6 @@ module Api.User exposing (..)
 
 import Api.Article exposing (Slug)
 import Api.Profile exposing (Profile)
-import Data.Entry
 
 
 type alias User =
@@ -23,7 +22,6 @@ type alias User =
 type alias UserFull =
     { id : Int
     , email : Email
-    , draft : Data.Entry.EntryDraft
     , username : String
     , bio : Maybe String
     , image : String

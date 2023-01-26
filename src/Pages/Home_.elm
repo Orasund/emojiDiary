@@ -6,13 +6,17 @@ import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.ArticleList
-import Data.Entry exposing (EntryDraft)
+import Data.Entry exposing (EntryContent)
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList)
 import Html.Events as Events
+import Layout
 import Page
 import Request exposing (Request)
 import Shared
+import Task
+import Time exposing (Zone)
 import Utils.Maybe
 import View exposing (View)
 import View.Entry
@@ -34,10 +38,12 @@ page shared _ =
 
 type alias Model =
     { listing : Data Api.Article.Listing
+    , zone : Zone
     , page : Int
     , tags : Data (List Tag)
     , activeTab : Tab
-    , entryDraft : EntryDraft
+    , entryDraft : Maybe EntryContent
+    , entries : Dict Int EntryContent
     }
 
 
@@ -59,17 +65,21 @@ init shared =
         model : Model
         model =
             { listing = Api.Data.Loading
+            , zone = Time.utc
             , page = 1
             , tags = Api.Data.Loading
             , activeTab = activeTab
-            , entryDraft = Data.Entry.newDraft
+            , entryDraft = Nothing
+            , entries = Dict.empty
             }
     in
     ( model
     , Cmd.batch
         [ fetchArticlesForTab shared model
-        , Home GetDraft |> sendToBackend
+        , Task.perform GotZone Time.here
         , GetTags_Home_ |> sendToBackend
+        , Home GetEntries |> sendToBackend
+        , Home GetDraft |> sendToBackend
         ]
     )
 
@@ -117,7 +127,10 @@ type Msg
     | ClickedUnfavorite User Article
     | ClickedPage Int
     | UpdatedArticle (Data Article)
-    | DraftUpdated EntryDraft
+    | EntriesUpdated
+    | GotZone Zone
+    | GotEntries (Dict Int EntryContent)
+    | DraftUpdated EntryContent
 
 
 type alias Tag =
@@ -192,8 +205,24 @@ update shared msg model =
         UpdatedArticle _ ->
             ( model, Cmd.none )
 
+        GotZone zone ->
+            ( { model | zone = zone }, Cmd.none )
+
+        EntriesUpdated ->
+            ( model
+            , [ Home Bridge.GetDraft |> sendToBackend
+              , Home Bridge.GetEntries |> sendToBackend
+              ]
+                |> Cmd.batch
+            )
+
+        GotEntries entries ->
+            ( { model | entries = entries }
+            , Cmd.none
+            )
+
         DraftUpdated entryDraft ->
-            ( { model | entryDraft = entryDraft }
+            ( { model | entryDraft = Just entryDraft }
             , Home (Bridge.DraftUpdated entryDraft)
                 |> sendToBackend
             )
@@ -220,7 +249,18 @@ view shared model =
                     ]
                 ]
             , div [ class "container page" ]
-                [ model.entryDraft |> View.Entry.draft { onSubmit = DraftUpdated }
+                [ model.entryDraft
+                    |> Maybe.map (View.Entry.draft { onSubmit = DraftUpdated })
+                    |> Maybe.withDefault Layout.none
+                , model.entries
+                    |> Dict.toList
+                    |> List.map
+                        (\( millis, entry ) ->
+                            View.Entry.toHtml model.zone
+                                (Time.millisToPosix millis)
+                                entry
+                        )
+                    |> Layout.column []
                 , div [ class "row" ]
                     [ div [ class "col-md-9" ] <|
                         (viewTabs shared model
