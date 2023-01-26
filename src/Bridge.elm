@@ -12,25 +12,18 @@ sendToBackend =
 
 type HomeToBackend
     = DraftUpdated EntryContent
-    | GetEntries
     | GetDraft
+
+
+type ProfileToBackend
+    = GetEntriesOfProfile
 
 
 type ToBackend
     = SignedOut User
       -- Req/resp paired messages
     | ArticleList_Username_ { filters : Filters, page : Int }
-    | ArticleGet_Editor__ArticleSlug_ { slug : String }
     | ArticleGet_Article__Slug_ { slug : String }
-    | ArticleCreate_Editor
-        { article :
-            { title : String, description : String, tags : List String }
-        }
-    | ArticleUpdate_Editor__ArticleSlug_
-        { slug : String
-        , updates :
-            { title : String, description : String, tags : List String }
-        }
     | ArticleDelete_Article__Slug_ { slug : String }
     | ArticleFavorite_Profile__Username_ { slug : String }
     | ArticleUnfavorite_Profile__Username_ { slug : String }
@@ -57,5 +50,6 @@ type ToBackend
             , bio : String
             }
         }
-    | Home HomeToBackend
+    | AtProfile { username : String } ProfileToBackend
+    | AtHome HomeToBackend
     | NoOpToBackend

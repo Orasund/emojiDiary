@@ -19,11 +19,11 @@ view options =
             [ a [ class "navbar-brand", href (Route.toHref Route.Home_) ] [ text "Emoji Diary" ]
             , ul [ class "nav navbar-nav pull-xs-right" ] <|
                 case options.user of
-                    Just _ ->
+                    Just user ->
                         List.concat
                             [ List.map (viewLink options.currentRoute) <|
                                 [ ( "Home", Route.Home_ )
-                                , ( "New Article", Route.Editor )
+                                , ( "Profile", Route.Profile__Username_ { username = user.username } )
                                 , ( "Settings", Route.Settings )
                                 ]
                             , [ li [ class "nav-item" ]

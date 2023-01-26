@@ -15,6 +15,8 @@ import Components.Navbar
 import Html exposing (..)
 import Html.Attributes exposing (class, href, rel)
 import Request exposing (Request)
+import Task
+import Time exposing (Zone)
 import Utils.Route
 import View exposing (View)
 
@@ -29,13 +31,14 @@ type alias Flags =
 
 type alias Model =
     { user : Maybe User
+    , zone : Zone
     }
 
 
 init : Request -> Flags -> ( Model, Cmd Msg )
 init _ json =
-    ( Model Nothing
-    , Cmd.none
+    ( { user = Nothing, zone = Time.utc }
+    , Task.perform GotZone Time.here
     )
 
 
@@ -46,6 +49,7 @@ init _ json =
 type Msg
     = ClickedSignOut
     | SignedInUser User
+    | GotZone Zone
 
 
 update : Request -> Msg -> Model -> ( Model, Cmd Msg )
@@ -60,6 +64,9 @@ update _ msg model =
             ( { model | user = Nothing }
             , model.user |> Maybe.map (\user -> sendToBackend (SignedOut user)) |> Maybe.withDefault Cmd.none
             )
+
+        GotZone zone ->
+            ( { model | zone = zone }, Cmd.none )
 
 
 subscriptions : Request -> Model -> Sub Msg

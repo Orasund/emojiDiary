@@ -53,7 +53,6 @@ type alias ToBackend =
 type BackendMsg
     = CheckSession SessionId ClientId
     | RenewSession UserId SessionId ClientId Time.Posix
-    | ArticleCreated Time.Posix (Maybe UserFull) ClientId { title : String, description : String, tags : List String }
     | ArticleCommentCreated Time.Posix (Maybe UserFull) ClientId Slug { body : String }
     | HourPassed Time.Posix
     | NoOpBackendMsg

@@ -9,15 +9,20 @@ import Bridge exposing (..)
 import Components.ArticleList
 import Components.IconButton as IconButton
 import Components.NotFound
+import Data.Entry exposing (EntryContent)
+import Dict exposing (Dict)
 import Gen.Params.Profile.Username_ exposing (Params)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, src)
 import Html.Events as Events
+import Layout
 import Page
 import Request
 import Shared
+import Time exposing (Posix, Zone)
 import Utils.Maybe
 import View exposing (View)
+import View.Entry
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
@@ -39,6 +44,7 @@ type alias Model =
     , profile : Data Profile
     , listing : Data Api.Article.Listing
     , selectedTab : Tab
+    , entries : List ( Posix, EntryContent )
     , page : Int
     }
 
@@ -54,12 +60,16 @@ init shared { params } =
       , profile = Api.Data.Loading
       , listing = Api.Data.Loading
       , selectedTab = MyArticles
+      , entries = []
       , page = 1
       }
     , Cmd.batch
         [ ProfileGet_Profile__Username_
             { username = params.username
             }
+            |> sendToBackend
+        , GetEntriesOfProfile
+            |> AtProfile { username = params.username }
             |> sendToBackend
         , fetchArticlesBy params.username 1
         ]
@@ -99,6 +109,7 @@ type Msg
     | ClickedFollow User Profile
     | ClickedUnfollow User Profile
     | ClickedPage Int
+    | GotEntries (List ( Posix, EntryContent ))
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
@@ -195,6 +206,9 @@ update shared msg model =
 
         UpdatedArticle _ ->
             ( model, Cmd.none )
+
+        GotEntries entries ->
+            ( { model | entries = entries }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -306,5 +320,11 @@ viewProfile shared profile model =
                             }
                     )
                 ]
+            , model.entries
+                |> List.map
+                    (\( posix, entry ) ->
+                        View.Entry.toHtml shared.zone posix entry
+                    )
+                |> Layout.column []
             ]
         ]

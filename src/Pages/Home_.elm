@@ -34,7 +34,6 @@ page shared _ =
 
 type alias Model =
     { listing : Data Api.Article.Listing
-    , zone : Zone
     , page : Int
     , entryDraft : Maybe EntryContent
     , entries : Dict Int EntryContent
@@ -47,18 +46,13 @@ init shared =
         model : Model
         model =
             { listing = Api.Data.Loading
-            , zone = Time.utc
             , page = 1
             , entryDraft = Nothing
             , entries = Dict.empty
             }
     in
     ( model
-    , Cmd.batch
-        [ Task.perform GotZone Time.here
-        , Home GetEntries |> sendToBackend
-        , Home GetDraft |> sendToBackend
-        ]
+    , AtHome GetDraft |> sendToBackend
     )
 
 
@@ -73,7 +67,6 @@ type Msg
     | ClickedPage Int
     | UpdatedArticle (Data Article)
     | EntriesUpdated
-    | GotZone Zone
     | GotEntries (Dict Int EntryContent)
     | DraftUpdated EntryContent
 
@@ -129,20 +122,16 @@ update shared msg model =
         UpdatedArticle _ ->
             ( model, Cmd.none )
 
-        GotZone zone ->
-            ( { model | zone = zone }, Cmd.none )
-
-        EntriesUpdated ->
-            ( model
-            , [ Home Bridge.GetDraft |> sendToBackend
-              , Home Bridge.GetEntries |> sendToBackend
-              ]
-                |> Cmd.batch
-            )
-
         GotEntries entries ->
             ( { model | entries = entries }
             , Cmd.none
+            )
+
+        EntriesUpdated ->
+            ( model
+            , [ AtHome Bridge.GetDraft |> sendToBackend
+              ]
+                |> Cmd.batch
             )
 
         DraftUpdated d ->
@@ -151,7 +140,7 @@ update shared msg model =
                     { d | content = String.slice 0 6 d.content }
             in
             ( { model | entryDraft = Just entryDraft }
-            , Home (Bridge.DraftUpdated entryDraft)
+            , AtHome (Bridge.DraftUpdated entryDraft)
                 |> sendToBackend
             )
 
@@ -180,15 +169,6 @@ view shared model =
                 [ model.entryDraft
                     |> Maybe.map (View.Entry.draft { onSubmit = DraftUpdated })
                     |> Maybe.withDefault Layout.none
-                , model.entries
-                    |> Dict.toList
-                    |> List.map
-                        (\( millis, entry ) ->
-                            View.Entry.toHtml model.zone
-                                (Time.millisToPosix millis)
-                                entry
-                        )
-                    |> Layout.column []
                 ]
             ]
         ]

@@ -13,8 +13,6 @@ import Gen.Msg
 import Lamdera exposing (..)
 import List.Extra as List
 import Pages.Article.Slug_
-import Pages.Editor
-import Pages.Editor.ArticleSlug_
 import Pages.Home_
 import Pages.Login
 import Pages.Profile.Username_
@@ -80,32 +78,6 @@ update msg model =
             , Time.now |> Task.perform (always (CheckSession sid cid))
             )
 
-        ArticleCreated t userM clientId article ->
-            case userM of
-                Just user ->
-                    let
-                        article_ =
-                            { slug = uniqueSlug model article.title 1
-                            , title = article.title
-                            , description = article.description
-                            , tags = article.tags
-                            , createdAt = t
-                            , updatedAt = t
-                            , userId = user.id
-                            }
-
-                        res =
-                            Success <| loadArticleFromStore model userM article_
-                    in
-                    ( { model | articles = model.articles |> Dict.insert article_.slug article_ }
-                    , sendToFrontend clientId (PageMsg (Gen.Msg.Editor (Pages.Editor.GotArticle res)))
-                    )
-
-                Nothing ->
-                    ( model
-                    , sendToFrontend clientId (PageMsg (Gen.Msg.Editor (Pages.Editor.GotArticle (Failure [ "invalid session" ]))))
-                    )
-
         ArticleCommentCreated t userM clientId slug commentBody ->
             case userM of
                 Just user ->
@@ -136,7 +108,7 @@ update msg model =
 
                 Nothing ->
                     ( model
-                    , sendToFrontend clientId (PageMsg (Gen.Msg.Editor (Pages.Editor.GotArticle (Failure [ "invalid session" ]))))
+                    , Cmd.none
                     )
 
         HourPassed currentTime ->
@@ -211,41 +183,12 @@ updateFromFrontend sessionId clientId msg model =
             in
             send (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotArticles (Success articleList))))
 
-        ArticleGet_Editor__ArticleSlug_ { slug } ->
-            onlyWhenArticleOwner slug
-                (\r -> PageMsg (Gen.Msg.Editor__ArticleSlug_ (Pages.Editor.ArticleSlug_.LoadedInitialArticle r)))
-
-        ArticleUpdate_Editor__ArticleSlug_ { slug, updates } ->
-            let
-                articles =
-                    model.articles
-                        |> Dict.update slug
-                            (Maybe.map
-                                (\a -> { a | title = updates.title, tags = updates.tags })
-                            )
-
-                res =
-                    articles
-                        |> Dict.get slug
-                        |> Maybe.map Success
-                        |> Maybe.withDefault (Failure [ "no article with slug: " ++ slug ])
-                        |> Api.Data.map (loadArticleFromStore model (model |> getSessionUser sessionId))
-            in
-            ( { model | articles = articles }, send_ (PageMsg (Gen.Msg.Editor__ArticleSlug_ (Pages.Editor.ArticleSlug_.UpdatedArticle res))) )
-
         ArticleGet_Article__Slug_ { slug } ->
             let
                 res =
                     model |> loadArticleBySlug slug sessionId
             in
             send (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotArticle res)))
-
-        ArticleCreate_Editor { article } ->
-            let
-                userM =
-                    model |> getSessionUser sessionId
-            in
-            ( model, Time.now |> Task.perform (\t -> ArticleCreated t userM clientId article) )
 
         ArticleDelete_Article__Slug_ { slug } ->
             onlyWhenArticleOwner_ slug
@@ -420,7 +363,7 @@ updateFromFrontend sessionId clientId msg model =
             in
             ( model_, send_ (PageMsg (Gen.Msg.Settings (Pages.Settings.GotUser res))) )
 
-        Home (DraftUpdated draft) ->
+        AtHome (DraftUpdated draft) ->
             case model |> getSessionUser sessionId of
                 Just user ->
                     ( { model
@@ -444,22 +387,26 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        Home GetEntries ->
+        AtProfile _ GetEntriesOfProfile ->
             case model |> getSessionUser sessionId of
                 Just user ->
                     model.entries
                         |> Dict.get user.id
                         |> Maybe.withDefault Dict.empty
+                        |> Dict.toList
+                        |> List.reverse
+                        |> List.take 31
+                        |> List.map (Tuple.mapFirst Time.millisToPosix)
                         |> (\entries ->
                                 ( model
-                                , send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotEntries entries)))
+                                , send_ (PageMsg (Gen.Msg.Profile__Username_ (Pages.Profile.Username_.GotEntries entries)))
                                 )
                            )
 
                 Nothing ->
                     ( model, Cmd.none )
 
-        Home GetDraft ->
+        AtHome GetDraft ->
             case model |> getSessionUser sessionId of
                 Just user ->
                     model.drafts
