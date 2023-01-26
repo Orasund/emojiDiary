@@ -8,6 +8,7 @@ module Api.User exposing (..)
 
 import Api.Article exposing (Slug)
 import Api.Profile exposing (Profile)
+import Set exposing (Set)
 
 
 type alias User =
@@ -27,7 +28,7 @@ type alias UserFull =
     , image : String
     , password : String
     , favorites : List Slug
-    , following : List UserId
+    , following : Set UserId
     }
 
 
@@ -45,12 +46,12 @@ toUser u =
     }
 
 
-toProfile : UserFull -> Profile
-toProfile u =
+toProfile : Bool -> UserFull -> Profile
+toProfile subscribed u =
     { username = u.username
     , bio = u.bio
     , image = u.image
-    , following = False
+    , following = subscribed
     }
 
 

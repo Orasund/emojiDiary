@@ -3,7 +3,7 @@ module Backend exposing (..)
 import Api.Article exposing (Article, ArticleStore, Slug)
 import Api.Data exposing (Data(..))
 import Api.Profile exposing (Profile)
-import Api.User exposing (Email, UserFull, UserId)
+import Api.User exposing (UserFull, UserId)
 import Bridge exposing (..)
 import Data.Entry
 import Dict
@@ -17,6 +17,7 @@ import Pages.Login
 import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
+import Set
 import Task
 import Time
 import Time.Extra as Time
@@ -86,7 +87,7 @@ update msg model =
                             , createdAt = t
                             , updatedAt = t
                             , body = commentBody.body
-                            , author = Api.User.toProfile user
+                            , author = Api.User.toProfile False user
                             }
 
                         newComments =
@@ -258,44 +259,26 @@ updateFromFrontend sessionId clientId msg model =
 
         ProfileGet_Profile__Username_ { userId } ->
             let
+                subscribed =
+                    model
+                        |> getSessionUser sessionId
+                        |> Maybe.map (\user -> user.following |> Set.member userId)
+                        |> Maybe.withDefault False
+
                 res =
-                    profileByUsername userId model
+                    profileByUsername subscribed userId model
                         |> Maybe.map Success
                         |> Maybe.withDefault (Failure [ "user not found" ])
             in
             send (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile res)))
 
-        ProfileFollow_Profile__Username_ { userId } ->
-            followUser sessionId
-                userId
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile r))))
-
-        ProfileUnfollow_Profile__Username_ { userId } ->
-            unfollowUser sessionId
-                userId
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile r))))
-
-        ProfileFollow_Article__Slug_ { userId } ->
-            followUser sessionId
-                userId
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotAuthor r))))
-
-        ProfileUnfollow_Article__Slug_ { userId } ->
-            unfollowUser sessionId
-                userId
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotAuthor r))))
-
         UserAuthentication_Login { params } ->
             let
                 ( response, cmd ) =
                     model.users
-                        |> Dict.find (\k u -> u.email == params.email)
+                        |> Dict.find (\_ u -> u.email == params.email)
                         |> Maybe.map
-                            (\( k, u ) ->
+                            (\( _, u ) ->
                                 if u.password == params.password then
                                     ( Success (Api.User.toUser u), renewSession u.id sessionId clientId )
 
@@ -309,7 +292,7 @@ updateFromFrontend sessionId clientId msg model =
         UserRegistration_Register { params } ->
             let
                 ( model_, cmd, res ) =
-                    if model.users |> Dict.any (\k u -> u.email == params.email) then
+                    if model.users |> Dict.any (\_ u -> u.email == params.email) then
                         ( model, Cmd.none, Failure [ "email address already taken" ] )
 
                     else
@@ -322,7 +305,7 @@ updateFromFrontend sessionId clientId msg model =
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
                                 , favorites = []
-                                , following = []
+                                , following = Set.empty
                                 }
                         in
                         ( { model | users = model.users |> Dict.insert user_.id user_ }
@@ -394,6 +377,21 @@ updateFromFrontend sessionId clientId msg model =
                                 , send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotEntries entries)))
                                 )
                            )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        AtProfile profile Subscribe ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    ( { model
+                        | users =
+                            model.users
+                                |> Dict.insert user.id
+                                    { user | following = user.following |> Set.insert profile.userId }
+                      }
+                    , Cmd.none
+                    )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -513,63 +511,15 @@ unfavoriteArticle sessionId slug model toResponseCmd =
             ( model, toResponseCmd <| Failure [ "invalid session" ] )
 
 
-followUser : SessionId -> UserId -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
-followUser sessionId userId model toResponseCmd =
-    let
-        res =
-            profileByUsername userId model
-                |> Maybe.map (\a -> Success { a | following = True })
-                |> Maybe.withDefault (Failure [ "invalid user" ])
-    in
-    case model |> getSessionUser sessionId of
-        Just user ->
-            ( case model.users |> Dict.find (\l u -> u.id == userId) of
-                Just ( _, follow ) ->
-                    model |> updateUser { user | following = (follow.id :: user.following) |> List.unique }
-
-                Nothing ->
-                    model
-            , toResponseCmd res
-            )
-
-        Nothing ->
-            ( model, toResponseCmd <| Failure [ "invalid session" ] )
-
-
-unfollowUser : SessionId -> UserId -> Model -> (Data Profile -> Cmd msg) -> ( Model, Cmd msg )
-unfollowUser sessionId userId model toResponseCmd =
-    case model.users |> Dict.find (\k u -> u.id == userId) of
-        Just ( _, followed ) ->
-            let
-                res =
-                    followed
-                        |> Api.User.toProfile
-                        |> (\a -> Success { a | following = False })
-            in
-            case model |> getSessionUser sessionId of
-                Just user ->
-                    ( model |> updateUser { user | following = user.following |> List.remove followed.id }
-                    , toResponseCmd res
-                    )
-
-                Nothing ->
-                    ( model, toResponseCmd <| Failure [ "invalid session" ] )
-
-        Nothing ->
-            ( model, toResponseCmd <| Failure [ "invalid user" ] )
-
-
 updateUser : UserFull -> Model -> Model
 updateUser user model =
     { model | users = model.users |> Dict.update user.id (Maybe.map (always user)) }
 
 
-profileByUsername userId model =
-    model.users |> Dict.find (\k u -> u.id == userId) |> Maybe.map (Tuple.second >> Api.User.toProfile)
-
-
-profileByEmail email model =
-    model.users |> Dict.find (\k u -> u.email == email) |> Maybe.map (Tuple.second >> Api.User.toProfile)
+profileByUsername subscribed userId model =
+    model.users
+        |> Dict.get userId
+        |> Maybe.map (Api.User.toProfile subscribed)
 
 
 loadArticleFromStore : Model -> Maybe UserFull -> ArticleStore -> Article
@@ -581,7 +531,7 @@ loadArticleFromStore model userM store =
         author =
             model.users
                 |> Dict.get store.userId
-                |> Maybe.map Api.User.toProfile
+                |> Maybe.map (Api.User.toProfile False)
                 |> Maybe.withDefault { username = "error: unknown user", bio = Nothing, image = "", following = False }
     in
     { slug = store.slug

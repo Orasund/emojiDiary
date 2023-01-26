@@ -5,23 +5,21 @@ import Api.Data exposing (Data)
 import Api.Profile exposing (Profile)
 import Api.User exposing (User, UserId)
 import Bridge exposing (..)
-import Components.ArticleList
-import Components.IconButton as IconButton
 import Components.NotFound
 import Data.Entry exposing (EntryContent)
-import Dict exposing (Dict)
 import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
-import Html.Attributes exposing (class, classList, src)
-import Html.Events as Events
+import Html.Attributes exposing (class, src)
 import Layout
 import Page
 import Request
+import Set
 import Shared
 import Time exposing (Posix, Zone)
 import Utils.Maybe
 import View exposing (View)
 import View.Entry
+import View.Style
 
 
 page : Shared.Model -> Request.With Params -> Page.With Model Msg
@@ -83,6 +81,7 @@ type Msg
     | UpdatedArticle (Data Article)
     | ClickedPage Int
     | GotEntries (List ( Posix, EntryContent ))
+    | Followed
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
@@ -137,6 +136,9 @@ update shared msg model =
         GotEntries entries ->
             ( { model | entries = entries }, Cmd.none )
 
+        Followed ->
+            ( model, AtProfile { userId = model.userId } Subscribe |> sendToBackend )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -172,18 +174,30 @@ viewProfile shared profile model =
 
         viewUserInfo : Html Msg
         viewUserInfo =
-            div [ class "user-info" ]
-                [ div [ class "container" ]
-                    [ div [ class "row" ]
-                        [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
-                            [ img [ class "user-img", src profile.image ] []
-                            , h4 [] [ text profile.username ]
-                            , Utils.Maybe.view profile.bio
-                                (\bio -> p [] [ text bio ])
-                            ]
-                        ]
+            [ div [ class "row" ]
+                [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
+                    [ img [ class "user-img", src profile.image ] []
+                    , h4 [] [ text profile.username ]
+                    , Utils.Maybe.view profile.bio
+                        (\bio -> p [] [ text bio ])
                     ]
                 ]
+            , (if profile.following then
+                Html.text "Subscribed"
+
+               else
+                View.Style.button { onPress = Just Followed, label = "Subscribe" }
+                    |> List.singleton
+                    |> Html.div []
+              )
+                |> Layout.el [ Layout.alignAtEnd ]
+            ]
+                |> Layout.row
+                    [ class "container"
+                    , Layout.fill
+                    , Layout.spaceBetween
+                    ]
+                |> Layout.el [ class "user-info" ]
     in
     div [ class "profile-page" ]
         [ viewUserInfo

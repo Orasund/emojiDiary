@@ -25,3 +25,10 @@ input args =
         , Events.onInput args.onInput
         ]
         []
+
+
+button : { onPress : Maybe msg, label : String } -> Html msg
+button args =
+    Html.text args.label
+        |> Layout.buttonEl { onPress = args.onPress, label = args.label }
+            [ Attr.class "btn btn-primary" ]
