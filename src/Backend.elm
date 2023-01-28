@@ -1,6 +1,5 @@
 module Backend exposing (..)
 
-import Api.Article exposing (Article, ArticleStore, Slug)
 import Api.Data exposing (Data(..))
 import Api.User exposing (UserFull)
 import Bridge exposing (..)
@@ -12,7 +11,6 @@ import Dict.Extra as Dict
 import Gen.Msg
 import Lamdera exposing (..)
 import List.Extra as List
-import Pages.Article.Slug_
 import Pages.Home_
 import Pages.Login
 import Pages.Profile.UserId_
@@ -42,8 +40,6 @@ init : ( Model, Cmd BackendMsg )
 init =
     ( { sessions = Dict.empty
       , users = Dict.empty
-      , articles = Dict.empty
-      , comments = Dict.empty
       , entries = Dict.empty
       , drafts = Dict.empty
       , trackers = Data.Store.empty
@@ -76,42 +72,13 @@ update msg model =
                 |> Maybe.withDefault ( model, Cmd.none )
 
         RenewSession uid sid cid now ->
-            ( { model | sessions = model.sessions |> Dict.update sid (always (Just { userId = uid, expires = now |> Time.add Time.Day 30 Time.utc })) }
+            ( { model
+                | sessions =
+                    model.sessions
+                        |> Dict.update sid (always (Just { userId = uid, expires = now |> Time.add Time.Day 30 Time.utc }))
+              }
             , Time.now |> Task.perform (always (CheckSession sid cid))
             )
-
-        ArticleCommentCreated t userM clientId slug commentBody ->
-            case userM of
-                Just user ->
-                    let
-                        comment =
-                            { id = Time.posixToMillis t
-                            , createdAt = t
-                            , updatedAt = t
-                            , body = commentBody.body
-                            , author = Api.User.toProfile False user
-                            }
-
-                        newComments =
-                            model.comments
-                                |> Dict.update slug
-                                    (\commentsM ->
-                                        case commentsM of
-                                            Just comments ->
-                                                Just (comments |> Dict.insert comment.id comment)
-
-                                            Nothing ->
-                                                Just <| Dict.singleton comment.id comment
-                                    )
-                    in
-                    ( { model | comments = newComments }
-                    , sendToFrontend clientId (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.CreatedComment (Success comment))))
-                    )
-
-                Nothing ->
-                    ( model
-                    , Cmd.none
-                    )
 
         HourPassed currentTime ->
             let
@@ -150,111 +117,10 @@ updateFromFrontend sessionId clientId msg model =
 
         send_ v =
             sendToFrontend clientId v
-
-        onlyWhenArticleOwner_ slug fn =
-            let
-                res =
-                    model |> loadArticleBySlug slug sessionId
-
-                userM =
-                    model |> getSessionUser sessionId
-            in
-            fn <|
-                case ( res, userM ) of
-                    ( Success article, Just user ) ->
-                        if article.author.username == user.username then
-                            res
-
-                        else
-                            Failure [ "you do not have permission for this article" ]
-
-                    _ ->
-                        Failure [ "you do not have permission for this article" ]
     in
     case msg of
         SignedOut _ ->
             ( { model | sessions = model.sessions |> Dict.remove sessionId }, Cmd.none )
-
-        ArticleGet_Article__Slug_ { slug } ->
-            let
-                res =
-                    model |> loadArticleBySlug slug sessionId
-            in
-            send (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotArticle res)))
-
-        ArticleDelete_Article__Slug_ { slug } ->
-            onlyWhenArticleOwner_ slug
-                (\r ->
-                    ( { model | articles = model.articles |> Dict.remove slug }
-                    , send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.DeletedArticle r)))
-                    )
-                )
-
-        ArticleFavorite_Profile__Username_ { slug } ->
-            favoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.UpdatedArticle r))))
-
-        ArticleUnfavorite_Profile__Username_ { slug } ->
-            unfavoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.UpdatedArticle r))))
-
-        ArticleFavorite_Home_ { slug } ->
-            favoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.UpdatedArticle r))))
-
-        ArticleUnfavorite_Home_ { slug } ->
-            unfavoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.UpdatedArticle r))))
-
-        ArticleFavorite_Article__Slug_ { slug } ->
-            favoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotArticle r))))
-
-        ArticleUnfavorite_Article__Slug_ { slug } ->
-            unfavoriteArticle sessionId
-                slug
-                model
-                (\r -> send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotArticle r))))
-
-        ArticleCommentGet_Article__Slug_ { articleSlug } ->
-            let
-                res =
-                    model.comments
-                        |> Dict.get articleSlug
-                        |> Maybe.map Dict.values
-                        |> Maybe.map (List.sortBy .id)
-                        |> Maybe.map List.reverse
-                        |> Maybe.map Success
-                        |> Maybe.withDefault (Success [])
-            in
-            send (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.GotComments res)))
-
-        ArticleCommentCreate_Article__Slug_ { articleSlug, comment } ->
-            let
-                userM =
-                    model |> getSessionUser sessionId
-            in
-            ( model, Time.now |> Task.perform (\t -> ArticleCommentCreated t userM clientId articleSlug comment) )
-
-        ArticleCommentDelete_Article__Slug_ { articleSlug, commentId } ->
-            let
-                newComments =
-                    model.comments
-                        |> Dict.update articleSlug (Maybe.map (\comments -> Dict.remove commentId comments))
-            in
-            ( { model | comments = newComments }
-            , send_ (PageMsg (Gen.Msg.Article__Slug_ (Pages.Article.Slug_.DeletedComment (Success commentId))))
-            )
 
         ProfileGet_Profile__Username_ { userId } ->
             let
@@ -303,7 +169,6 @@ updateFromFrontend sessionId clientId msg model =
                                 , bio = Nothing
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
-                                , favorites = []
                                 , trackers = []
                                 , following = Set.empty
                                 }
@@ -540,92 +405,6 @@ renewSession email sid cid =
     Time.now |> Task.perform (RenewSession email sid cid)
 
 
-getListing : Model -> SessionId -> Int -> Api.Article.Listing
-getListing model sessionId page =
-    let
-        filtered =
-            model.articles
-
-        enriched =
-            filtered |> Dict.map (\_ article -> loadArticleFromStore model (model |> getSessionUser sessionId) article)
-
-        grouped =
-            enriched |> Dict.values |> List.greedyGroupsOf Api.Article.itemsPerPage
-
-        articles =
-            grouped |> List.getAt (page - 1) |> Maybe.withDefault []
-    in
-    { articles = articles
-    , page = page
-    , totalPages = grouped |> List.length
-    }
-
-
-loadArticleBySlug : String -> SessionId -> Model -> Data Article
-loadArticleBySlug slug sid model =
-    model.articles
-        |> Dict.get slug
-        |> Maybe.map Success
-        |> Maybe.withDefault (Failure [ "no article with slug: " ++ slug ])
-        |> Api.Data.map (loadArticleFromStore model (model |> getSessionUser sid))
-
-
-uniqueSlug : Model -> String -> Int -> String
-uniqueSlug model title i =
-    let
-        slug =
-            title |> String.replace " " "-"
-    in
-    if not (model.articles |> Dict.member slug) then
-        slug
-
-    else if not (model.articles |> Dict.member (slug ++ "-" ++ String.fromInt i)) then
-        slug ++ "-" ++ String.fromInt i
-
-    else
-        uniqueSlug model title (i + 1)
-
-
-favoriteArticle : SessionId -> Slug -> Model -> (Data Article -> Cmd msg) -> ( Model, Cmd msg )
-favoriteArticle sessionId slug model toResponseCmd =
-    let
-        res =
-            model
-                |> loadArticleBySlug slug sessionId
-                |> Api.Data.map (\a -> { a | favorited = True })
-    in
-    case model |> getSessionUser sessionId of
-        Just user ->
-            ( if model.articles |> Dict.member slug then
-                model |> updateUser { user | favorites = (slug :: user.favorites) |> List.unique }
-
-              else
-                model
-            , toResponseCmd res
-            )
-
-        Nothing ->
-            ( model, toResponseCmd <| Failure [ "invalid session" ] )
-
-
-unfavoriteArticle : SessionId -> Slug -> Model -> (Data Article -> Cmd msg) -> ( Model, Cmd msg )
-unfavoriteArticle sessionId slug model toResponseCmd =
-    let
-        res =
-            model
-                |> loadArticleBySlug slug sessionId
-                |> Api.Data.map (\a -> { a | favorited = False })
-    in
-    case model |> getSessionUser sessionId of
-        Just user ->
-            ( model |> updateUser { user | favorites = user.favorites |> List.remove slug }
-            , toResponseCmd res
-            )
-
-        Nothing ->
-            ( model, toResponseCmd <| Failure [ "invalid session" ] )
-
-
 updateUser : UserFull -> Model -> Model
 updateUser user model =
     { model | users = model.users |> Dict.update user.id (Maybe.map (always user)) }
@@ -635,27 +414,3 @@ profileByUsername subscribed userId model =
     model.users
         |> Dict.get userId
         |> Maybe.map (Api.User.toProfile subscribed)
-
-
-loadArticleFromStore : Model -> Maybe UserFull -> ArticleStore -> Article
-loadArticleFromStore model userM store =
-    let
-        favorited =
-            userM |> Maybe.map (\user -> user.favorites |> List.member store.slug) |> Maybe.withDefault False
-
-        author =
-            model.users
-                |> Dict.get store.userId
-                |> Maybe.map (Api.User.toProfile False)
-                |> Maybe.withDefault { username = "error: unknown user", bio = Nothing, image = "", following = False }
-    in
-    { slug = store.slug
-    , title = store.title
-    , description = store.description
-    , tags = store.tags
-    , createdAt = store.createdAt
-    , updatedAt = store.updatedAt
-    , favorited = favorited
-    , favoritesCount = model.users |> Dict.filter (\_ user -> user.favorites |> List.member store.slug) |> Dict.size
-    , author = author
-    }

@@ -1,6 +1,5 @@
 module Pages.Home_ exposing (Model, Msg(..), page)
 
-import Api.Article exposing (Article)
 import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
@@ -37,8 +36,7 @@ page shared _ =
 
 
 type alias Model =
-    { listing : Data Api.Article.Listing
-    , page : Int
+    { page : Int
     , entryDraft : Maybe EntryContent
     , trackers : List ( Id Tracker, Tracker )
     , entries : List ( User, Posix, EntryContent )
@@ -50,8 +48,7 @@ init shared =
     let
         model : Model
         model =
-            { listing = Api.Data.Loading
-            , page = 1
+            { page = 1
             , entryDraft = Nothing
             , trackers = []
             , entries = []
@@ -71,12 +68,7 @@ init shared =
 
 
 type Msg
-    = GotArticles (Data Api.Article.Listing)
-    | ClickedFavorite User Article
-    | ClickedUnfavorite User Article
-    | ClickedPage Int
-    | UpdatedArticle (Data Article)
-    | EntriesUpdated
+    = EntriesUpdated
     | GotEntries (List ( User, Posix, EntryContent ))
     | DraftUpdated EntryContent
     | GotTrackers (List ( Id Tracker, Tracker ))
@@ -91,50 +83,6 @@ type alias Tag =
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
 update shared msg model =
     case msg of
-        GotArticles listing ->
-            ( { model | listing = listing }
-            , Cmd.none
-            )
-
-        ClickedFavorite user article ->
-            ( model
-            , ArticleFavorite_Home_
-                { slug = article.slug
-                }
-                |> sendToBackend
-            )
-
-        ClickedUnfavorite user article ->
-            ( model
-            , ArticleUnfavorite_Home_
-                { slug = article.slug
-                }
-                |> sendToBackend
-            )
-
-        ClickedPage page_ ->
-            let
-                newModel : Model
-                newModel =
-                    { model
-                        | listing = Api.Data.Loading
-                        , page = page_
-                    }
-            in
-            ( newModel, Cmd.none )
-
-        UpdatedArticle (Api.Data.Success article) ->
-            ( { model
-                | listing =
-                    Api.Data.map (Api.Article.updateArticle article)
-                        model.listing
-              }
-            , Cmd.none
-            )
-
-        UpdatedArticle _ ->
-            ( model, Cmd.none )
-
         GotEntries entries ->
             ( { model | entries = entries }
             , Cmd.none

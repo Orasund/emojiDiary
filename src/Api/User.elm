@@ -6,7 +6,6 @@ module Api.User exposing (..)
 
 -}
 
-import Api.Article exposing (Slug)
 import Api.Profile exposing (Profile)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
@@ -26,7 +25,6 @@ type alias UserFull =
     , bio : Maybe String
     , image : String
     , password : String
-    , favorites : List Slug
     , trackers : List (Id Tracker)
     , following : Set UserId
     }

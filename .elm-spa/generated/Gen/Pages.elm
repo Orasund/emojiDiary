@@ -8,7 +8,6 @@ import Gen.Params.Login
 import Gen.Params.NotFound
 import Gen.Params.Register
 import Gen.Params.Settings
-import Gen.Params.Article.Slug_
 import Gen.Params.Profile.UserId_
 import Gen.Model as Model
 import Gen.Msg as Msg
@@ -19,7 +18,6 @@ import Pages.Login
 import Pages.NotFound
 import Pages.Register
 import Pages.Settings
-import Pages.Article.Slug_
 import Pages.Profile.UserId_
 import Request exposing (Request)
 import Shared
@@ -54,9 +52,6 @@ init route =
         Route.Settings ->
             pages.settings.init ()
     
-        Route.Article__Slug_ params ->
-            pages.article__slug_.init params
-    
         Route.Profile__UserId_ params ->
             pages.profile__userId_.init params
 
@@ -75,9 +70,6 @@ update msg_ model_ =
     
         ( Msg.Settings msg, Model.Settings params model ) ->
             pages.settings.update params msg model
-    
-        ( Msg.Article__Slug_ msg, Model.Article__Slug_ params model ) ->
-            pages.article__slug_.update params msg model
     
         ( Msg.Profile__UserId_ msg, Model.Profile__UserId_ params model ) ->
             pages.profile__userId_.update params msg model
@@ -107,9 +99,6 @@ view model_ =
         Model.Settings params model ->
             pages.settings.view params model
     
-        Model.Article__Slug_ params model ->
-            pages.article__slug_.view params model
-    
         Model.Profile__UserId_ params model ->
             pages.profile__userId_.view params model
 
@@ -135,9 +124,6 @@ subscriptions model_ =
         Model.Settings params model ->
             pages.settings.subscriptions params model
     
-        Model.Article__Slug_ params model ->
-            pages.article__slug_.subscriptions params model
-    
         Model.Profile__UserId_ params model ->
             pages.profile__userId_.subscriptions params model
 
@@ -152,7 +138,6 @@ pages :
     , notFound : Static Gen.Params.NotFound.Params
     , register : Bundle Gen.Params.Register.Params Pages.Register.Model Pages.Register.Msg
     , settings : Bundle Gen.Params.Settings.Params Pages.Settings.Model Pages.Settings.Msg
-    , article__slug_ : Bundle Gen.Params.Article.Slug_.Params Pages.Article.Slug_.Model Pages.Article.Slug_.Msg
     , profile__userId_ : Bundle Gen.Params.Profile.UserId_.Params Pages.Profile.UserId_.Model Pages.Profile.UserId_.Msg
     }
 pages =
@@ -161,7 +146,6 @@ pages =
     , notFound = static Pages.NotFound.view Model.NotFound
     , register = bundle Pages.Register.page Model.Register Msg.Register
     , settings = bundle Pages.Settings.page Model.Settings Msg.Settings
-    , article__slug_ = bundle Pages.Article.Slug_.page Model.Article__Slug_ Msg.Article__Slug_
     , profile__userId_ = bundle Pages.Profile.UserId_.page Model.Profile__UserId_ Msg.Profile__UserId_
     }
 

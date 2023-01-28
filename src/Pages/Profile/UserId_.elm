@@ -1,6 +1,5 @@
 module Pages.Profile.UserId_ exposing (Model, Msg(..), page)
 
-import Api.Article exposing (Article)
 import Api.Data exposing (Data)
 import Api.Profile exposing (Profile)
 import Api.User exposing (User, UserId)
@@ -39,7 +38,6 @@ page shared req =
 type alias Model =
     { userId : UserId
     , profile : Data Profile
-    , listing : Data Api.Article.Listing
     , entries : List ( Posix, EntryContent )
     , page : Int
     }
@@ -53,7 +51,6 @@ init shared { params } =
     in
     ( { userId = userId
       , profile = Api.Data.Loading
-      , listing = Api.Data.Loading
       , entries = []
       , page = 1
       }
@@ -75,11 +72,6 @@ init shared { params } =
 
 type Msg
     = GotProfile (Data Profile)
-    | GotArticles (Data Api.Article.Listing)
-    | ClickedFavorite User Article
-    | ClickedUnfavorite User Article
-    | UpdatedArticle (Data Article)
-    | ClickedPage Int
     | GotEntries (List ( Posix, EntryContent ))
     | ToggleFollowing
 
@@ -91,47 +83,6 @@ update shared msg model =
             ( { model | profile = profile }
             , Cmd.none
             )
-
-        GotArticles listing ->
-            ( { model | listing = listing }
-            , Cmd.none
-            )
-
-        ClickedFavorite user article ->
-            ( model
-            , ArticleFavorite_Profile__Username_
-                { slug = article.slug
-                }
-                |> sendToBackend
-            )
-
-        ClickedUnfavorite user article ->
-            ( model
-            , ArticleUnfavorite_Profile__Username_
-                { slug = article.slug
-                }
-                |> sendToBackend
-            )
-
-        ClickedPage page_ ->
-            ( { model
-                | listing = Api.Data.Loading
-                , page = page_
-              }
-            , Cmd.none
-            )
-
-        UpdatedArticle (Api.Data.Success article) ->
-            ( { model
-                | listing =
-                    Api.Data.map (Api.Article.updateArticle article)
-                        model.listing
-              }
-            , Cmd.none
-            )
-
-        UpdatedArticle _ ->
-            ( model, Cmd.none )
 
         GotEntries entries ->
             ( { model | entries = entries }, Cmd.none )

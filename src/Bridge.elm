@@ -28,17 +28,6 @@ type ProfileToBackend
 type ToBackend
     = SignedOut User
       -- Req/resp paired messages
-    | ArticleGet_Article__Slug_ { slug : String }
-    | ArticleDelete_Article__Slug_ { slug : String }
-    | ArticleFavorite_Profile__Username_ { slug : String }
-    | ArticleUnfavorite_Profile__Username_ { slug : String }
-    | ArticleFavorite_Home_ { slug : String }
-    | ArticleUnfavorite_Home_ { slug : String }
-    | ArticleFavorite_Article__Slug_ { slug : String }
-    | ArticleUnfavorite_Article__Slug_ { slug : String }
-    | ArticleCommentGet_Article__Slug_ { articleSlug : String }
-    | ArticleCommentCreate_Article__Slug_ { articleSlug : String, comment : { body : String } }
-    | ArticleCommentDelete_Article__Slug_ { articleSlug : String, commentId : Int }
     | ProfileGet_Profile__Username_ { userId : UserId }
     | UserAuthentication_Login { params : { username : String, password : String } }
     | UserRegistration_Register { params : { username : String, email : String, password : String } }

@@ -1,7 +1,5 @@
 module Types exposing (..)
 
-import Api.Article exposing (ArticleStore, Slug)
-import Api.Article.Comment exposing (Comment)
 import Api.User exposing (User, UserFull, UserId)
 import Bridge
 import Browser
@@ -28,8 +26,6 @@ type alias FrontendModel =
 type alias BackendModel =
     { sessions : Dict SessionId Session
     , users : Dict Int UserFull
-    , articles : Dict Slug ArticleStore
-    , comments : Dict Slug (Dict Int Comment)
     , trackers : Store Tracker
     , drafts : Dict UserId ( Time.Posix, EntryContent )
     , entries : Dict UserId (Dict Int EntryContent)
@@ -56,7 +52,6 @@ type alias ToBackend =
 type BackendMsg
     = CheckSession SessionId ClientId
     | RenewSession UserId SessionId ClientId Time.Posix
-    | ArticleCommentCreated Time.Posix (Maybe UserFull) ClientId Slug { body : String }
     | HourPassed Time.Posix
     | NoOpBackendMsg
 
