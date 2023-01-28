@@ -1,4 +1,4 @@
-module Data.Store exposing (Id, Store, empty, get, insert, remove)
+module Data.Store exposing (Id, Store, empty, get, insert, read, remove, update)
 
 import Dict exposing (Dict)
 
@@ -29,6 +29,15 @@ insert a store =
     )
 
 
+update : Id a -> (a -> a) -> Store a -> Store a
+update (Id key) fun store =
+    { store
+        | items =
+            store.items
+                |> Dict.update key (Maybe.map fun)
+    }
+
+
 remove : Id a -> Store a -> Store a
 remove (Id key) store =
     { store | items = store.items |> Dict.remove key }
@@ -37,3 +46,8 @@ remove (Id key) store =
 get : Id a -> Store a -> Maybe a
 get (Id key) store =
     store.items |> Dict.get key
+
+
+read : Id a -> Int
+read (Id key) =
+    key

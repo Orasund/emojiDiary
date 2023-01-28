@@ -1,11 +1,11 @@
 module Pages.Profile.UserId_ exposing (Model, Msg(..), page)
 
-import Api.Data exposing (Data)
-import Api.Profile exposing (Profile)
-import Api.User exposing (User, UserId)
+import Api.Data exposing (Data(..))
+import Api.User exposing (Profile, User, UserFull, UserId)
 import Bridge exposing (..)
 import Components.NotFound
 import Data.Entry exposing (EntryContent)
+import Data.Store exposing (Id)
 import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
 import Html.Attributes as Attr
@@ -36,8 +36,7 @@ page shared req =
 
 
 type alias Model =
-    { userId : UserId
-    , profile : Data Profile
+    { profile : Data Profile
     , entries : List ( Posix, EntryContent )
     , page : Int
     }
@@ -46,21 +45,16 @@ type alias Model =
 init : Shared.Model -> Request.With Params -> ( Model, Cmd Msg )
 init shared { params } =
     let
-        userId =
-            String.toInt params.userId |> Maybe.withDefault -1
+        username =
+            --todo rename params.userId to params.username
+            params.userId
     in
-    ( { userId = userId
-      , profile = Api.Data.Loading
+    ( { profile = Api.Data.Loading
       , entries = []
       , page = 1
       }
     , Cmd.batch
-        [ ProfileGet_Profile__Username_
-            { userId = String.toInt params.userId |> Maybe.withDefault -1
-            }
-            |> sendToBackend
-        , GetEntriesOfProfile
-            |> AtProfile { userId = userId }
+        [ ProfileGet_Profile__Username_ { username = username }
             |> sendToBackend
         ]
     )
@@ -81,25 +75,34 @@ update shared msg model =
     case msg of
         GotProfile profile ->
             ( { model | profile = profile }
-            , Cmd.none
+            , case profile of
+                Api.Data.Success { id } ->
+                    GetEntriesOfProfile
+                        |> AtProfile { userId = id }
+                        |> sendToBackend
+
+                _ ->
+                    Cmd.none
             )
 
         GotEntries entries ->
             ( { model | entries = entries }, Cmd.none )
 
         ToggleFollowing ->
-            ( { model
-                | profile =
-                    model.profile
-                        |> Api.Data.map
-                            (\profile ->
+            case model.profile of
+                Success profile ->
+                    ( { model
+                        | profile =
+                            Api.Data.Success
                                 { profile | following = not profile.following }
-                            )
-              }
-            , ToggleSubscription
-                |> AtProfile { userId = model.userId }
-                |> sendToBackend
-            )
+                      }
+                    , ToggleSubscription
+                        |> AtProfile { userId = profile.id }
+                        |> sendToBackend
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg

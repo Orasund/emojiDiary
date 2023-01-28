@@ -5,7 +5,7 @@ import Bridge
 import Browser
 import Browser.Navigation exposing (Key)
 import Data.Entry exposing (EntryContent)
-import Data.Store exposing (Store)
+import Data.Store exposing (Id, Store)
 import Data.Tracker exposing (Tracker)
 import Dict exposing (Dict)
 import Gen.Pages as Pages
@@ -25,16 +25,18 @@ type alias FrontendModel =
 
 type alias BackendModel =
     { sessions : Dict SessionId Session
-    , users : Dict Int UserFull
+    , users : Store UserFull
     , trackers : Store Tracker
+    , usernames : Dict String (Id UserFull)
     , drafts : Dict UserId ( Time.Posix, EntryContent )
     , entries : Dict UserId (Dict Int EntryContent)
+    , following : Dict UserId (List (Id UserFull))
     , hour : Time.Posix
     }
 
 
 type alias Session =
-    { userId : Int, expires : Time.Posix }
+    { userId : Id UserFull, expires : Time.Posix }
 
 
 type FrontendMsg
@@ -51,7 +53,7 @@ type alias ToBackend =
 
 type BackendMsg
     = CheckSession SessionId ClientId
-    | RenewSession UserId SessionId ClientId Time.Posix
+    | RenewSession (Id UserFull) SessionId ClientId Time.Posix
     | HourPassed Time.Posix
     | NoOpBackendMsg
 

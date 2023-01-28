@@ -20,7 +20,7 @@ view options =
     , case options.user of
         Just user ->
             [ [ ( "Home", Route.Home_ )
-              , ( "Profile", Route.Profile__UserId_ { userId = String.fromInt user.id } )
+              , ( "Profile", Route.Profile__UserId_ { userId = user.username } )
               , ( "Settings", Route.Settings )
               ]
                 |> List.map (viewLink options.currentRoute)

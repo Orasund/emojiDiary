@@ -4,7 +4,7 @@ import Api.Data exposing (Data(..))
 import Api.User exposing (UserFull)
 import Bridge exposing (..)
 import Data.Entry
-import Data.Store
+import Data.Store exposing (Id)
 import Data.Tracker
 import Dict
 import Dict.Extra as Dict
@@ -39,11 +39,13 @@ app =
 init : ( Model, Cmd BackendMsg )
 init =
     ( { sessions = Dict.empty
-      , users = Dict.empty
+      , users = Data.Store.empty
+      , usernames = Dict.empty
       , entries = Dict.empty
       , drafts = Dict.empty
       , trackers = Data.Store.empty
       , hour = Time.millisToPosix 0
+      , following = Dict.empty
       }
     , Cmd.none
     )
@@ -122,30 +124,51 @@ updateFromFrontend sessionId clientId msg model =
         SignedOut _ ->
             ( { model | sessions = model.sessions |> Dict.remove sessionId }, Cmd.none )
 
-        ProfileGet_Profile__Username_ { userId } ->
-            let
-                subscribed =
-                    model
-                        |> getSessionUser sessionId
-                        |> Maybe.map (\user -> user.following |> Set.member userId)
-                        |> Maybe.withDefault False
-
-                res =
-                    profileByUsername subscribed userId model
-                        |> Maybe.map Success
-                        |> Maybe.withDefault (Failure [ "user not found" ])
-            in
-            send (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile res)))
+        ProfileGet_Profile__Username_ { username } ->
+            model.usernames
+                |> Dict.get username
+                |> Maybe.andThen
+                    (\profileId ->
+                        let
+                            subscribed =
+                                model
+                                    |> getSessionUser sessionId
+                                    |> Maybe.map Tuple.first
+                                    |> Maybe.map
+                                        (\userId ->
+                                            model.following
+                                                |> Dict.get (Data.Store.read userId)
+                                                |> Maybe.withDefault []
+                                                |> List.member profileId
+                                        )
+                                    |> Maybe.withDefault False
+                        in
+                        model.users
+                            |> Data.Store.get profileId
+                            |> Maybe.map (Tuple.pair profileId)
+                            |> Maybe.map (Api.User.toProfile subscribed)
+                            |> Maybe.map Success
+                    )
+                |> Maybe.withDefault (Failure [ "user not found" ])
+                |> (\res -> send (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotProfile res))))
 
         UserAuthentication_Login { params } ->
             let
                 ( response, cmd ) =
-                    model.users
-                        |> Dict.find (\_ u -> u.username == params.username)
+                    model.usernames
+                        |> Dict.get params.username
+                        |> Maybe.andThen
+                            (\id ->
+                                model.users
+                                    |> Data.Store.get id
+                                    |> Maybe.map (Tuple.pair id)
+                            )
                         |> Maybe.map
-                            (\( _, u ) ->
+                            (\( id, u ) ->
                                 if u.password == params.password then
-                                    ( Success (Api.User.toUser u), renewSession u.id sessionId clientId )
+                                    ( Success (Api.User.toUser ( id, u ))
+                                    , renewSession id sessionId clientId
+                                    )
 
                                 else
                                     ( Failure [ "email or password is invalid" ], Cmd.none )
@@ -157,25 +180,29 @@ updateFromFrontend sessionId clientId msg model =
         UserRegistration_Register { params } ->
             let
                 ( model_, cmd, res ) =
-                    if model.users |> Dict.any (\_ u -> u.username == params.username) then
+                    if model.usernames |> Dict.member params.username then
                         ( model, Cmd.none, Failure [ "username already taken" ] )
 
                     else
                         let
                             user_ : UserFull
                             user_ =
-                                { id = Dict.size model.users
-                                , username = params.username
+                                { username = params.username
                                 , bio = Nothing
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
                                 , trackers = []
-                                , following = Set.empty
                                 }
+
+                            ( store, userId ) =
+                                model.users |> Data.Store.insert user_
                         in
-                        ( { model | users = model.users |> Dict.insert user_.id user_ }
-                        , renewSession user_.id sessionId clientId
-                        , Success (Api.User.toUser user_)
+                        ( { model
+                            | users = store
+                            , usernames = model.usernames |> Dict.insert params.username userId
+                          }
+                        , renewSession userId sessionId clientId
+                        , Success (Api.User.toUser ( userId, user_ ))
                         )
             in
             ( model_, Cmd.batch [ cmd, send_ (PageMsg (Gen.Msg.Register (Pages.Register.GotUser res))) ] )
@@ -184,7 +211,7 @@ updateFromFrontend sessionId clientId msg model =
             let
                 ( model_, res ) =
                     case model |> getSessionUser sessionId of
-                        Just user ->
+                        Just ( userId, user ) ->
                             let
                                 user_ =
                                     { user
@@ -195,7 +222,12 @@ updateFromFrontend sessionId clientId msg model =
                                         , image = params.image
                                     }
                             in
-                            ( model |> updateUser user_, Success (Api.User.toUser user_) )
+                            ( { model
+                                | users =
+                                    model.users |> Data.Store.update userId (\_ -> user_)
+                              }
+                            , Success (Api.User.toUser ( userId, user_ ))
+                            )
 
                         Nothing ->
                             ( model, Failure [ "you do not have permission for this user" ] )
@@ -204,11 +236,11 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome (DraftUpdated draft) ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     ( { model
                         | drafts =
                             model.drafts
-                                |> Dict.update user.id
+                                |> Dict.update (Data.Store.read userId)
                                     (\maybe ->
                                         if String.isEmpty draft.content then
                                             Nothing
@@ -228,7 +260,7 @@ updateFromFrontend sessionId clientId msg model =
 
         AtProfile profile GetEntriesOfProfile ->
             model.entries
-                |> Dict.get profile.userId
+                |> Dict.get (Data.Store.read profile.userId)
                 |> Maybe.withDefault Dict.empty
                 |> Dict.toList
                 |> List.reverse
@@ -242,19 +274,23 @@ updateFromFrontend sessionId clientId msg model =
 
         AtProfile profile ToggleSubscription ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     ( { model
-                        | users =
-                            model.users
-                                |> Dict.insert user.id
-                                    { user
-                                        | following =
-                                            if user.following |> Set.member profile.userId then
-                                                user.following |> Set.remove profile.userId
+                        | following =
+                            model.following
+                                |> Dict.update (Data.Store.read userId)
+                                    (\maybe ->
+                                        maybe
+                                            |> Maybe.withDefault []
+                                            |> (\list ->
+                                                    if list |> List.member profile.userId then
+                                                        list |> List.filter ((/=) profile.userId)
 
-                                            else
-                                                user.following |> Set.insert profile.userId
-                                    }
+                                                    else
+                                                        profile.userId :: list
+                                               )
+                                            |> Just
+                                    )
                       }
                     , Cmd.none
                     )
@@ -264,21 +300,27 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome GetEntriesOfSubscribed ->
             case model |> getSessionUser sessionId of
-                Just user ->
-                    user.following
-                        |> Set.toList
-                        |> List.filterMap (\id -> model.users |> Dict.get id)
+                Just ( userId, user ) ->
+                    model.following
+                        |> Dict.get (Data.Store.read userId)
+                        |> Maybe.withDefault []
                         |> List.filterMap
-                            (\u ->
+                            (\id ->
+                                model.users
+                                    |> Data.Store.get id
+                                    |> Maybe.map (Tuple.pair id)
+                            )
+                        |> List.filterMap
+                            (\( id, u ) ->
                                 model.entries
-                                    |> Dict.get u.id
+                                    |> Dict.get (Data.Store.read id)
                                     |> Maybe.withDefault Dict.empty
                                     |> Dict.toList
                                     |> List.reverse
                                     |> List.head
                                     |> Maybe.map
                                         (\( millis, entry ) ->
-                                            ( Api.User.toUser u, Time.millisToPosix millis, entry )
+                                            ( Api.User.toUser ( id, u ), Time.millisToPosix millis, entry )
                                         )
                             )
                         |> (\entries ->
@@ -292,9 +334,9 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome GetDraft ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     model.drafts
-                        |> Dict.get user.id
+                        |> Dict.get (Data.Store.read userId)
                         |> Maybe.map Tuple.second
                         |> Maybe.withDefault Data.Entry.newDraft
                         |> (\draft ->
@@ -306,7 +348,7 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome GetTrackers ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     user.trackers
                         |> List.filterMap
                             (\id ->
@@ -323,7 +365,7 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome (AddTracker emoji) ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     model.trackers
                         |> Data.Store.insert
                             (emoji
@@ -339,8 +381,8 @@ updateFromFrontend sessionId clientId msg model =
                                     | trackers = store
                                     , users =
                                         model.users
-                                            |> Dict.insert user.id
-                                                { user | trackers = userTrackers }
+                                            |> Data.Store.update userId
+                                                (\_ -> { user | trackers = userTrackers })
                                   }
                                 , userTrackers
                                     |> List.filterMap
@@ -361,7 +403,7 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome (RemoveTracker trackerId) ->
             case model |> getSessionUser sessionId of
-                Just user ->
+                Just ( userId, user ) ->
                     ( model.trackers |> Data.Store.remove trackerId
                     , user.trackers |> List.filter ((/=) trackerId)
                     )
@@ -370,8 +412,8 @@ updateFromFrontend sessionId clientId msg model =
                                     | trackers = store
                                     , users =
                                         model.users
-                                            |> Dict.insert user.id
-                                                { user | trackers = userTrackers }
+                                            |> Data.Store.update userId
+                                                (\_ -> { user | trackers = userTrackers })
                                   }
                                 , userTrackers
                                     |> List.filterMap
@@ -394,23 +436,24 @@ updateFromFrontend sessionId clientId msg model =
             ( model, Cmd.none )
 
 
-getSessionUser : SessionId -> Model -> Maybe UserFull
+getUserIdByUsername : String -> Model -> Maybe (Id UserFull)
+getUserIdByUsername string model =
+    model.usernames
+        |> Dict.get string
+
+
+getSessionUser : SessionId -> Model -> Maybe ( Id UserFull, UserFull )
 getSessionUser sid model =
     model.sessions
         |> Dict.get sid
-        |> Maybe.andThen (\session -> model.users |> Dict.get session.userId)
+        |> Maybe.map .userId
+        |> Maybe.andThen
+            (\id ->
+                model.users
+                    |> Data.Store.get id
+                    |> Maybe.map (Tuple.pair id)
+            )
 
 
-renewSession email sid cid =
-    Time.now |> Task.perform (RenewSession email sid cid)
-
-
-updateUser : UserFull -> Model -> Model
-updateUser user model =
-    { model | users = model.users |> Dict.update user.id (Maybe.map (always user)) }
-
-
-profileByUsername subscribed userId model =
-    model.users
-        |> Dict.get userId
-        |> Maybe.map (Api.User.toProfile subscribed)
+renewSession userId sid cid =
+    Time.now |> Task.perform (RenewSession userId sid cid)

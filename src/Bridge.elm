@@ -1,6 +1,6 @@
 module Bridge exposing (..)
 
-import Api.User exposing (User, UserId)
+import Api.User exposing (User, UserFull, UserId)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
@@ -28,7 +28,7 @@ type ProfileToBackend
 type ToBackend
     = SignedOut User
       -- Req/resp paired messages
-    | ProfileGet_Profile__Username_ { userId : UserId }
+    | ProfileGet_Profile__Username_ { username : String }
     | UserAuthentication_Login { params : { username : String, password : String } }
     | UserRegistration_Register { params : { username : String, email : String, password : String } }
     | UserUpdate_Settings
@@ -38,6 +38,6 @@ type ToBackend
             , image : String
             }
         }
-    | AtProfile { userId : UserId } ProfileToBackend
+    | AtProfile { userId : Id UserFull } ProfileToBackend
     | AtHome HomeToBackend
     | NoOpToBackend
