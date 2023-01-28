@@ -12,7 +12,7 @@ import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.Navbar
 import Html exposing (..)
-import Html.Attributes exposing (class, href, rel)
+import Html.Attributes exposing (href, rel)
 import Request exposing (Request)
 import Task
 import Time exposing (Zone)

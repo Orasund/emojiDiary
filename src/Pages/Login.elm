@@ -3,14 +3,17 @@ module Pages.Login exposing (Model, Msg(..), page)
 import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
-import Components.UserForm
+import Components.ErrorList
 import Effect exposing (Effect)
 import Gen.Route as Route
+import Html
+import Layout
 import Page
 import Request exposing (Request)
 import Shared
 import Utils.Route
 import View exposing (View)
+import View.Style
 
 
 page : Shared.Model -> Request -> Page.With Model Msg
@@ -118,23 +121,35 @@ view : Model -> View Msg
 view model =
     { title = "Sign in"
     , body =
-        [ Components.UserForm.view
-            { user = model.user
+        [ View.Style.sectionHeading "Sign in"
+        , [ Html.text "Don't have an account?"
+                |> Layout.linkTo (Route.toHref Route.Register) []
+          , case model.user of
+                Api.Data.Failure reasons ->
+                    Components.ErrorList.view reasons
+
+                _ ->
+                    Layout.none
+          , View.Style.inputWithType
+                { name = "Username"
+                , content = model.username
+                , onInput = Updated Username
+                , type_ = "username"
+                }
+          , View.Style.inputWithType
+                { name = "Password"
+                , content = model.password
+                , onInput = Updated Password
+                , type_ = "password"
+                }
+          ]
+            |> Layout.column [ Layout.spacing 8 ]
+        , View.Style.button
+            { onPress = Just AttemptedSignIn
             , label = "Sign in"
-            , onFormSubmit = AttemptedSignIn
-            , alternateLink = { label = "Need an account?", route = Route.Register }
-            , fields =
-                [ { label = "Username"
-                  , type_ = "username"
-                  , value = model.username
-                  , onInput = Updated Username
-                  }
-                , { label = "Password"
-                  , type_ = "password"
-                  , value = model.password
-                  , onInput = Updated Password
-                  }
-                ]
             }
         ]
+            |> Layout.column [ Layout.spacing 32 ]
+            |> View.Style.hero
+            |> List.singleton
     }

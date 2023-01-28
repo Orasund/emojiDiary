@@ -3,7 +3,6 @@ module View.Entry exposing (..)
 import Api.User exposing (User)
 import Data.Entry exposing (EntryContent)
 import Html exposing (Html)
-import Html.Attributes
 import Layout
 import Time exposing (Posix, Zone)
 import View.Posix

@@ -42,8 +42,8 @@ hero content =
         |> Layout.el
             (Layout.centered
                 ++ [ Attr.class "bg-secondary"
-                   , Attr.style "padding-top" "32px"
-                   , Attr.style "padding-bottom" "32px"
+                   , Attr.style "padding-top" "64px"
+                   , Attr.style "padding-bottom" "64px"
                    ]
             )
 
@@ -54,6 +54,19 @@ input args =
         [ Attr.class "input w-full max-w-xs"
         , Attr.placeholder args.name
         , Attr.type_ "text"
+        , Attr.value args.content
+        , Events.onInput args.onInput
+        ]
+        []
+        |> Layout.el []
+
+
+inputWithType : { name : String, content : String, onInput : String -> msg, type_ : String } -> Html msg
+inputWithType args =
+    Html.input
+        [ Attr.class "input w-full max-w-xs"
+        , Attr.placeholder args.name
+        , Attr.type_ args.type_
         , Attr.value args.content
         , Events.onInput args.onInput
         ]
@@ -73,3 +86,16 @@ buttonText args =
     Html.text args.label
         |> Layout.buttonEl { onPress = args.onPress, label = args.label }
             [ Attr.class "btn btn-ghost" ]
+
+
+error : String -> Html msg
+error err =
+    Html.text err
+        |> List.singleton
+        |> Html.span []
+        |> Layout.el [ Attr.class "alert alert-error shadow-lg" ]
+
+
+container : Html msg -> Html msg
+container =
+    Layout.el [ Attr.style "max-width" "800px", Layout.centerContent ]

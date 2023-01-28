@@ -8,7 +8,7 @@ import Components.NotFound
 import Data.Entry exposing (EntryContent)
 import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
-import Html.Attributes exposing (class, src)
+import Html.Attributes as Attr
 import Layout
 import Page
 import Request
@@ -136,14 +136,19 @@ viewProfile shared profile model =
 
         viewUserInfo : Html Msg
         viewUserInfo =
-            [ div [ class "row" ]
-                [ div [ class "col-xs-12 col-md-10 offset-md-1" ]
-                    [ img [ class "user-img", src profile.image ] []
-                    , h4 [] [ text profile.username ]
-                    , Utils.Maybe.view profile.bio
-                        (\bio -> p [] [ text bio ])
+            [ [ img
+                    [ Attr.class "user-img"
+                    , Attr.src profile.image
+                    , Attr.style "border-radius" "1000px"
                     ]
-                ]
+                    []
+              , profile.username
+                    |> View.Style.sectionHeading
+                    |> Layout.el [ Layout.centerContent ]
+              , Utils.Maybe.view profile.bio
+                    (\bio -> p [] [ text bio ])
+              ]
+                |> Layout.column [ Layout.spacing 16 ]
             , (if isViewingOwnProfile then
                 Layout.none
 
@@ -160,18 +165,19 @@ viewProfile shared profile model =
                 |> Layout.el [ Layout.alignAtEnd ]
             ]
                 |> Layout.row
-                    [ class "container"
-                    , Layout.fill
+                    [ Layout.fill
                     , Layout.spaceBetween
                     ]
-                |> Layout.el [ class "user-info" ]
+                |> View.Style.container
+                |> View.Style.hero
     in
-    div [ class "profile-page" ]
-        [ viewUserInfo
-        , model.entries
-            |> List.map
-                (\( posix, entry ) ->
-                    View.Entry.toHtml shared.zone posix entry
-                )
-            |> Layout.column [ class "container page" ]
-        ]
+    [ viewUserInfo
+    , model.entries
+        |> List.map
+            (\( posix, entry ) ->
+                View.Entry.toHtml shared.zone posix entry
+            )
+        |> Layout.column []
+        |> View.Style.container
+    ]
+        |> Layout.column [ Layout.spacing 16 ]

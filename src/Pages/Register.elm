@@ -3,14 +3,18 @@ module Pages.Register exposing (Model, Msg(..), page)
 import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
-import Components.UserForm
+import Components.ErrorList
 import Effect exposing (Effect)
 import Gen.Route as Route
+import Html
+import Html.Events
+import Layout
 import Page
 import Request exposing (Request)
 import Shared
 import Utils.Route
 import View exposing (View)
+import View.Style
 
 
 page : Shared.Model -> Request -> Page.With Model Msg
@@ -32,6 +36,7 @@ type alias Model =
     , username : String
     , email : String
     , password : String
+    , password2 : String
     }
 
 
@@ -45,6 +50,7 @@ init shared =
             Nothing ->
                 Api.Data.NotAsked
         )
+        ""
         ""
         ""
         ""
@@ -64,8 +70,8 @@ type Msg
 
 type Field
     = Username
-    | Email
     | Password
+    | Password2
 
 
 update : Request -> Msg -> Model -> ( Model, Effect Msg )
@@ -76,27 +82,31 @@ update req msg model =
             , Effect.none
             )
 
-        Updated Email email ->
-            ( { model | email = email }
-            , Effect.none
-            )
-
         Updated Password password ->
             ( { model | password = password }
             , Effect.none
             )
 
-        AttemptedSignUp ->
-            ( model
-            , (Effect.fromCmd << sendToBackend) <|
-                UserRegistration_Register
-                    { params =
-                        { username = model.username
-                        , email = model.email
-                        , password = model.password
-                        }
-                    }
+        Updated Password2 password2 ->
+            ( { model | password2 = password2 }
+            , Effect.none
             )
+
+        AttemptedSignUp ->
+            if model.password == model.password2 then
+                ( model
+                , (Effect.fromCmd << sendToBackend) <|
+                    UserRegistration_Register
+                        { params =
+                            { username = model.username
+                            , email = model.email
+                            , password = model.password
+                            }
+                        }
+                )
+
+            else
+                ( { model | user = Api.Data.Failure [ "Password fields don't match" ] }, Effect.none )
 
         GotUser user ->
             case Api.Data.toMaybe user of
@@ -127,23 +137,43 @@ view : Model -> View Msg
 view model =
     { title = "Sign up"
     , body =
-        [ Components.UserForm.view
-            { user = model.user
+        [ View.Style.sectionHeading "Sign Up"
+        , [ Html.text "Already have an account?"
+                |> Layout.linkTo (Route.toHref Route.Login) []
+          , case model.user of
+                Api.Data.Failure reasons ->
+                    Components.ErrorList.view reasons
+
+                _ ->
+                    Layout.none
+          , View.Style.inputWithType
+                { name = "Username"
+                , content = model.username
+                , onInput = Updated Username
+                , type_ = "username"
+                }
+          , View.Style.inputWithType
+                { name = "Password"
+                , content = model.password
+                , onInput = Updated Password
+                , type_ = "password"
+                }
+          , View.Style.inputWithType
+                { name = "Password Repeated"
+                , content = model.password2
+                , onInput = Updated Password2
+                , type_ = "password"
+                }
+          ]
+            |> Layout.column [ Layout.spacing 8 ]
+        , View.Style.button
+            { onPress = Just AttemptedSignUp
             , label = "Sign up"
-            , onFormSubmit = AttemptedSignUp
-            , alternateLink = { label = "Have an account?", route = Route.Login }
-            , fields =
-                [ { label = "Username"
-                  , type_ = "text"
-                  , value = model.username
-                  , onInput = Updated Username
-                  }
-                , { label = "Password"
-                  , type_ = "password"
-                  , value = model.password
-                  , onInput = Updated Password
-                  }
-                ]
             }
         ]
+            |> Layout.column [ Layout.spacing 32 ]
+            |> List.singleton
+            |> Html.form [ Html.Events.onSubmit AttemptedSignUp ]
+            |> View.Style.hero
+            |> List.singleton
     }

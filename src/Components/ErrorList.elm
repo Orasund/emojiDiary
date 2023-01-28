@@ -2,13 +2,15 @@ module Components.ErrorList exposing (view)
 
 import Html exposing (..)
 import Html.Attributes exposing (class)
+import Layout
+import View.Style
 
 
 view : List String -> Html msg
 view reasons =
     if List.isEmpty reasons then
-        text ""
+        Layout.none
 
     else
-        ul [ class "error-messages" ]
-            (List.map (\message -> li [] [ text message ]) reasons)
+        List.map (\message -> View.Style.error message) reasons
+            |> Layout.column [ Layout.spacing 4 ]
