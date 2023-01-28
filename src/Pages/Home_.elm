@@ -13,7 +13,7 @@ import Page
 import Request exposing (Request)
 import Shared
 import Task
-import Time exposing (Zone)
+import Time exposing (Posix, Zone)
 import View exposing (View)
 import View.Entry
 
@@ -36,7 +36,7 @@ type alias Model =
     { listing : Data Api.Article.Listing
     , page : Int
     , entryDraft : Maybe EntryContent
-    , entries : Dict Int EntryContent
+    , entries : List ( User, Posix, EntryContent )
     }
 
 
@@ -48,11 +48,14 @@ init shared =
             { listing = Api.Data.Loading
             , page = 1
             , entryDraft = Nothing
-            , entries = Dict.empty
+            , entries = []
             }
     in
     ( model
-    , AtHome GetDraft |> sendToBackend
+    , [ AtHome GetDraft |> sendToBackend
+      , AtHome GetEntriesOfSubscribed |> sendToBackend
+      ]
+        |> Cmd.batch
     )
 
 
@@ -67,7 +70,7 @@ type Msg
     | ClickedPage Int
     | UpdatedArticle (Data Article)
     | EntriesUpdated
-    | GotEntries (Dict Int EntryContent)
+    | GotEntries (List ( User, Posix, EntryContent ))
     | DraftUpdated EntryContent
 
 
@@ -163,10 +166,14 @@ view shared model =
                 [ model.entryDraft
                     |> Maybe.map (View.Entry.draft { onSubmit = DraftUpdated })
                     |> Maybe.withDefault Layout.none
-                    |> Layout.el [ Attr.style "max-width" "800px", Layout.contentCentered ]
+                    |> Layout.el [ Attr.class "container " ]
                 ]
-            , div [ Attr.class "container page" ]
-                []
+            , model.entries
+                |> List.map
+                    (\( user, posix, entry ) ->
+                        View.Entry.withUser shared.zone ( user, posix, entry )
+                    )
+                |> Layout.column [ Attr.class "container page" ]
             ]
         ]
     }

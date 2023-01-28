@@ -394,6 +394,34 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        AtHome GetEntriesOfSubscribed ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    user.following
+                        |> Set.toList
+                        |> List.filterMap (\id -> model.users |> Dict.get id)
+                        |> List.filterMap
+                            (\u ->
+                                model.entries
+                                    |> Dict.get u.id
+                                    |> Maybe.withDefault Dict.empty
+                                    |> Dict.toList
+                                    |> List.reverse
+                                    |> List.head
+                                    |> Maybe.map
+                                        (\( millis, entry ) ->
+                                            ( Api.User.toUser u, Time.millisToPosix millis, entry )
+                                        )
+                            )
+                        |> (\entries ->
+                                ( model
+                                , send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotEntries entries)))
+                                )
+                           )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         AtHome GetDraft ->
             case model |> getSessionUser sessionId of
                 Just user ->

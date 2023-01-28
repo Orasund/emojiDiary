@@ -222,5 +222,5 @@ viewProfile shared profile model =
                 (\( posix, entry ) ->
                     View.Entry.toHtml shared.zone posix entry
                 )
-            |> Layout.column [ class "container" ]
+            |> Layout.column [ class "container page" ]
         ]

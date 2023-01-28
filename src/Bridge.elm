@@ -11,6 +11,7 @@ sendToBackend =
 
 type HomeToBackend
     = DraftUpdated EntryContent
+    | GetEntriesOfSubscribed
     | GetDraft
 
 

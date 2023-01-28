@@ -10,7 +10,6 @@ module Shared exposing
 
 import Api.User exposing (User)
 import Bridge exposing (..)
-import Components.Footer
 import Components.Navbar
 import Html exposing (..)
 import Html.Attributes exposing (class, href, rel)
@@ -99,7 +98,6 @@ view req { page, toMsg } model =
                         , onSignOut = toMsg ClickedSignOut
                         }
                     , div [ class "page" ] page.body
-                    , Components.Footer.view
                     ]
                ]
     }

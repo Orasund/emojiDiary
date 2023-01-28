@@ -1,5 +1,6 @@
 module View.Entry exposing (..)
 
+import Api.User exposing (User)
 import Data.Entry exposing (EntryContent)
 import Html exposing (Html)
 import Html.Attributes
@@ -26,6 +27,20 @@ draft args entryDraft =
                 , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
                 }
             ]
+        ]
+
+
+withUser : Zone -> ( User, Posix, EntryContent ) -> Html msg
+withUser zone ( user, timestamp, entry ) =
+    Layout.row [ Layout.spacing 16 ]
+        [ entry.content |> Html.text |> Layout.el []
+        , entry.description |> Html.text |> Layout.el [ Layout.fill ]
+        , user.username |> Html.text |> Layout.el []
+        , View.Posix.asWeekday zone timestamp
+            ++ ", "
+            ++ View.Posix.asDate zone timestamp
+            |> Html.text
+            |> Layout.el []
         ]
 
 
