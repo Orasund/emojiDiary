@@ -16,7 +16,7 @@ type HomeToBackend
 
 type ProfileToBackend
     = GetEntriesOfProfile
-    | Subscribe
+    | ToggleSubscription
 
 
 type ToBackend

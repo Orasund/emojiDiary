@@ -7,7 +7,7 @@ import Bridge exposing (..)
 import Data.Entry exposing (EntryContent)
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (class)
+import Html.Attributes as Attr
 import Layout
 import Page
 import Request exposing (Request)
@@ -158,18 +158,15 @@ view : Shared.Model -> Model -> View Msg
 view shared model =
     { title = ""
     , body =
-        [ div [ class "home-page" ]
-            [ div [ class "banner" ]
-                [ div [ class "container" ]
-                    [ h1 [ class "logo-font" ] [ text "conduit" ]
-                    , p [] [ text "A place to share your knowledge." ]
-                    ]
-                ]
-            , div [ class "container page" ]
+        [ div [ Attr.class "home-page" ]
+            [ div [ Attr.class "banner" ]
                 [ model.entryDraft
                     |> Maybe.map (View.Entry.draft { onSubmit = DraftUpdated })
                     |> Maybe.withDefault Layout.none
+                    |> Layout.el [ Attr.style "max-width" "800px", Layout.contentCentered ]
                 ]
+            , div [ Attr.class "container page" ]
+                []
             ]
         ]
     }

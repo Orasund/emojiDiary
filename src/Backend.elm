@@ -2,8 +2,7 @@ module Backend exposing (..)
 
 import Api.Article exposing (Article, ArticleStore, Slug)
 import Api.Data exposing (Data(..))
-import Api.Profile exposing (Profile)
-import Api.User exposing (UserFull, UserId)
+import Api.User exposing (UserFull)
 import Bridge exposing (..)
 import Data.Entry
 import Dict
@@ -148,9 +147,6 @@ updateFromFrontend sessionId clientId msg model =
 
         send_ v =
             sendToFrontend clientId v
-
-        onlyWhenArticleOwner slug fn =
-            onlyWhenArticleOwner_ slug (\r -> ( model, sendToFrontend clientId (fn r) ))
 
         onlyWhenArticleOwner_ slug fn =
             let
@@ -362,33 +358,35 @@ updateFromFrontend sessionId clientId msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        AtProfile _ GetEntriesOfProfile ->
-            case model |> getSessionUser sessionId of
-                Just user ->
-                    model.entries
-                        |> Dict.get user.id
-                        |> Maybe.withDefault Dict.empty
-                        |> Dict.toList
-                        |> List.reverse
-                        |> List.take 31
-                        |> List.map (Tuple.mapFirst Time.millisToPosix)
-                        |> (\entries ->
-                                ( model
-                                , send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotEntries entries)))
-                                )
-                           )
+        AtProfile profile GetEntriesOfProfile ->
+            model.entries
+                |> Dict.get profile.userId
+                |> Maybe.withDefault Dict.empty
+                |> Dict.toList
+                |> List.reverse
+                |> List.take 31
+                |> List.map (Tuple.mapFirst Time.millisToPosix)
+                |> (\entries ->
+                        ( model
+                        , send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotEntries entries)))
+                        )
+                   )
 
-                Nothing ->
-                    ( model, Cmd.none )
-
-        AtProfile profile Subscribe ->
+        AtProfile profile ToggleSubscription ->
             case model |> getSessionUser sessionId of
                 Just user ->
                     ( { model
                         | users =
                             model.users
                                 |> Dict.insert user.id
-                                    { user | following = user.following |> Set.insert profile.userId }
+                                    { user
+                                        | following =
+                                            if user.following |> Set.member profile.userId then
+                                                user.following |> Set.remove profile.userId
+
+                                            else
+                                                user.following |> Set.insert profile.userId
+                                    }
                       }
                     , Cmd.none
                     )
@@ -432,7 +430,7 @@ getListing model sessionId page =
             model.articles
 
         enriched =
-            filtered |> Dict.map (\slug article -> loadArticleFromStore model (model |> getSessionUser sessionId) article)
+            filtered |> Dict.map (\_ article -> loadArticleFromStore model (model |> getSessionUser sessionId) article)
 
         grouped =
             enriched |> Dict.values |> List.greedyGroupsOf Api.Article.itemsPerPage

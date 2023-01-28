@@ -5,6 +5,8 @@ import Gen.Route as Route exposing (Route)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, href)
 import Html.Events as Events
+import Layout
+import View.Style
 
 
 view :
@@ -27,11 +29,10 @@ view options =
                                 , ( "Settings", Route.Settings )
                                 ]
                             , [ li [ class "nav-item" ]
-                                    [ a
-                                        [ class "nav-link"
-                                        , Events.onClick options.onSignOut
-                                        ]
-                                        [ text "Sign out" ]
+                                    [ View.Style.buttonText
+                                        { onPress = Just options.onSignOut
+                                        , label = "Sign out"
+                                        }
                                     ]
                               ]
                             ]

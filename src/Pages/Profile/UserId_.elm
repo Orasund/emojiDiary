@@ -81,7 +81,7 @@ type Msg
     | UpdatedArticle (Data Article)
     | ClickedPage Int
     | GotEntries (List ( Posix, EntryContent ))
-    | Followed
+    | ToggleFollowing
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
@@ -136,8 +136,19 @@ update shared msg model =
         GotEntries entries ->
             ( { model | entries = entries }, Cmd.none )
 
-        Followed ->
-            ( model, AtProfile { userId = model.userId } Subscribe |> sendToBackend )
+        ToggleFollowing ->
+            ( { model
+                | profile =
+                    model.profile
+                        |> Api.Data.map
+                            (\profile ->
+                                { profile | following = not profile.following }
+                            )
+              }
+            , ToggleSubscription
+                |> AtProfile { userId = model.userId }
+                |> sendToBackend
+            )
 
 
 subscriptions : Model -> Sub Msg
@@ -182,11 +193,16 @@ viewProfile shared profile model =
                         (\bio -> p [] [ text bio ])
                     ]
                 ]
-            , (if profile.following then
-                Html.text "Subscribed"
+            , (if isViewingOwnProfile then
+                Layout.none
+
+               else if profile.following then
+                View.Style.buttonText { onPress = Just ToggleFollowing, label = "Unsubscribe" }
+                    |> List.singleton
+                    |> Html.div []
 
                else
-                View.Style.button { onPress = Just Followed, label = "Subscribe" }
+                View.Style.button { onPress = Just ToggleFollowing, label = "Subscribe" }
                     |> List.singleton
                     |> Html.div []
               )

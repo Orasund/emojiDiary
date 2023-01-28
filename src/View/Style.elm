@@ -32,3 +32,10 @@ button args =
     Html.text args.label
         |> Layout.buttonEl { onPress = args.onPress, label = args.label }
             [ Attr.class "btn btn-primary" ]
+
+
+buttonText : { onPress : Maybe msg, label : String } -> Html msg
+buttonText args =
+    Html.text args.label
+        |> Layout.buttonEl { onPress = args.onPress, label = args.label }
+            [ Attr.class "btn btn-link" ]
