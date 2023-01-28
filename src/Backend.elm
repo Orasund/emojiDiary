@@ -3,7 +3,7 @@ module Backend exposing (..)
 import Api.Data exposing (Data(..))
 import Api.User exposing (UserFull)
 import Bridge exposing (..)
-import Data.Entry
+import Config
 import Data.Store exposing (Id)
 import Data.Tracker
 import Dict
@@ -16,10 +16,9 @@ import Pages.Login
 import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
-import Set
 import Task
 import Time
-import Time.Extra as Time
+import Time.Extra exposing (Interval(..))
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), ToFrontend(..))
 
 
@@ -55,8 +54,7 @@ subscriptions : Model -> Sub BackendMsg
 subscriptions _ =
     let
         hour =
-            --60 * 60 * 1000
-            60 * 1000
+            60 * 60 * 1000
     in
     Sub.batch
         [ onConnect CheckSession
@@ -77,32 +75,44 @@ update msg model =
             ( { model
                 | sessions =
                     model.sessions
-                        |> Dict.update sid (always (Just { userId = uid, expires = now |> Time.add Time.Day 30 Time.utc }))
+                        |> Dict.update sid (always (Just { userId = uid, expires = now |> Time.Extra.add Day 30 Time.utc }))
               }
             , Time.now |> Task.perform (always (CheckSession sid cid))
             )
 
         HourPassed currentTime ->
             let
-                entries =
+                ( entries, drafts ) =
                     model.drafts
                         |> Dict.foldl
-                            (\userId ( posix, content ) ->
-                                Dict.update userId
-                                    (\maybe ->
-                                        maybe
-                                            |> Maybe.map (Dict.insert (Time.posixToMillis posix) content)
-                                            |> Maybe.withDefault (Dict.singleton (Time.posixToMillis posix) content)
-                                            |> Just
+                            (\userId ( posix, content ) ( e, d ) ->
+                                if
+                                    (posix
+                                        |> Time.Extra.add Hour Config.postingCooldownInHours Time.utc
+                                        |> Time.posixToMillis
                                     )
+                                        < Time.posixToMillis currentTime
+                                then
+                                    ( e
+                                        |> Dict.update userId
+                                            (\maybe ->
+                                                maybe
+                                                    |> Maybe.map (Dict.insert (Time.posixToMillis posix) content)
+                                                    |> Maybe.withDefault (Dict.singleton (Time.posixToMillis posix) content)
+                                                    |> Just
+                                            )
+                                    , d |> Dict.remove userId
+                                    )
+
+                                else
+                                    ( e, d )
                             )
-                            model.entries
+                            ( model.entries, model.drafts )
             in
             ( { model
                 | hour = currentTime
                 , entries = entries
-                , drafts =
-                    Dict.empty
+                , drafts = drafts
               }
             , broadcast (PageMsg (Gen.Msg.Home_ Pages.Home_.EntriesUpdated))
             )
@@ -245,24 +255,36 @@ updateFromFrontend sessionId clientId msg model =
 
         AtHome (DraftUpdated draft) ->
             case model |> getSessionUser sessionId of
-                Just ( userId, user ) ->
-                    ( { model
-                        | drafts =
-                            model.drafts
-                                |> Dict.update (Data.Store.read userId)
-                                    (\maybe ->
+                Just ( userId, _ ) ->
+                    model.drafts
+                        |> Dict.get (Data.Store.read userId)
+                        |> (\maybe ->
+                                ( { model
+                                    | drafts =
                                         if String.isEmpty draft.content then
-                                            Nothing
+                                            model.drafts |> Dict.remove (Data.Store.read userId)
 
                                         else
-                                            maybe
-                                                |> Maybe.map (Tuple.mapSecond (\_ -> draft))
-                                                |> Maybe.withDefault ( model.hour, draft )
-                                                |> Just
-                                    )
-                      }
-                    , Cmd.none
-                    )
+                                            model.drafts
+                                                |> Dict.insert (Data.Store.read userId)
+                                                    (maybe
+                                                        |> Maybe.map (Tuple.mapSecond (\_ -> draft))
+                                                        |> Maybe.withDefault ( model.hour, draft )
+                                                    )
+                                  }
+                                , case maybe of
+                                    Just _ ->
+                                        Cmd.none
+
+                                    Nothing ->
+                                        ( model.hour, draft )
+                                            |> Just
+                                            |> Pages.Home_.DraftCreated
+                                            |> Gen.Msg.Home_
+                                            |> PageMsg
+                                            |> send_
+                                )
+                           )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -346,10 +368,8 @@ updateFromFrontend sessionId clientId msg model =
                 Just ( userId, user ) ->
                     model.drafts
                         |> Dict.get (Data.Store.read userId)
-                        |> Maybe.map Tuple.second
-                        |> Maybe.withDefault Data.Entry.newDraft
                         |> (\draft ->
-                                ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftUpdated draft))) )
+                                ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftCreated draft))) )
                            )
 
                 Nothing ->

@@ -120,7 +120,7 @@ view shared model =
     , body =
         case model.profile of
             Api.Data.Success profile ->
-                [ viewProfile shared profile model ]
+                viewProfile shared profile model
 
             Api.Data.Failure _ ->
                 [ Components.NotFound.view ]
@@ -130,7 +130,7 @@ view shared model =
     }
 
 
-viewProfile : Shared.Model -> Profile -> Model -> Html Msg
+viewProfile : Shared.Model -> Profile -> Model -> List (Html Msg)
 viewProfile shared profile model =
     let
         isViewingOwnProfile : Bool
@@ -168,10 +168,10 @@ viewProfile shared profile model =
                 |> Layout.el [ Layout.alignAtEnd ]
             ]
                 |> Layout.row
-                    [ Layout.fill
-                    , Layout.spaceBetween
-                    ]
-                |> View.Style.container
+                    ([ Layout.spaceBetween
+                     ]
+                        ++ View.Style.container
+                    )
                 |> View.Style.hero
     in
     [ viewUserInfo
@@ -180,7 +180,6 @@ viewProfile shared profile model =
             (\( posix, entry ) ->
                 View.Entry.toHtml shared.zone posix entry
             )
-        |> Layout.column []
-        |> View.Style.container
+        |> Layout.column View.Style.container
+        |> Layout.el [ Layout.centerContent ]
     ]
-        |> Layout.column [ Layout.spacing 16 ]

@@ -13,6 +13,7 @@ import Bridge exposing (..)
 import Components.Navbar
 import Html exposing (..)
 import Html.Attributes exposing (href, rel)
+import Layout
 import Request exposing (Request)
 import Task
 import Time exposing (Zone)
@@ -91,14 +92,13 @@ view req { page, toMsg } model =
             page.title ++ " | Emoji Diary"
     , body =
         css
-            ++ [ [ Components.Navbar.view
+            ++ [ Components.Navbar.view
                     { user = model.user
                     , currentRoute = Utils.Route.fromUrl req.url
                     , onSignOut = toMsg ClickedSignOut
                     }
-                 , div [] page.body
-                 ]
-                    |> div [ Html.Attributes.attribute "data-theme" "lemonade" ]
+                    :: page.body
+                    |> Layout.column [ Layout.fill, Html.Attributes.attribute "data-theme" "lemonade" ]
                ]
     }
 

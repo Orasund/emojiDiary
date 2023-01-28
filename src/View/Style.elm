@@ -1,6 +1,6 @@
 module View.Style exposing (..)
 
-import Html exposing (Html)
+import Html exposing (Attribute, Html)
 import Html.Attributes as Attr
 import Html.Events as Events
 import Layout
@@ -41,9 +41,10 @@ hero content =
     content
         |> Layout.el
             (Layout.centered
-                ++ [ Attr.class "bg-secondary"
+                ++ [ Attr.class "bg-accent"
                    , Attr.style "padding-top" "64px"
                    , Attr.style "padding-bottom" "64px"
+                   , Attr.style "width" "100%"
                    ]
             )
 
@@ -96,6 +97,6 @@ error err =
         |> Layout.el [ Attr.class "alert alert-error shadow-lg" ]
 
 
-container : Html msg -> Html msg
+container : List (Attribute msg)
 container =
-    Layout.el [ Attr.style "max-width" "800px", Layout.centerContent ]
+    [ Attr.style "width" "800px", Layout.centerContent ]

@@ -1,17 +1,26 @@
 module View.Entry exposing (..)
 
 import Api.User exposing (User)
+import Config
 import Data.Entry exposing (EntryContent)
 import Html exposing (Html)
+import Html.Attributes as Attr
 import Layout
 import Time exposing (Posix, Zone)
+import Time.Extra exposing (Interval(..))
 import View.Posix
 import View.Style
 
 
-draft : { onSubmit : EntryContent -> msg } -> EntryContent -> Html msg
-draft args entryDraft =
-    Layout.row [ Layout.noWrap, Layout.spacing 8 ]
+draft : { onSubmit : EntryContent -> msg, zone : Zone } -> Maybe ( Posix, EntryContent ) -> Html msg
+draft args maybe =
+    let
+        entryDraft =
+            maybe
+                |> Maybe.map Tuple.second
+                |> Maybe.withDefault Data.Entry.newDraft
+    in
+    [ Layout.row [ Layout.noWrap, Layout.spacing 8 ]
         [ View.Style.emojiInput
             { name = "Mood"
             , content = entryDraft.content
@@ -23,6 +32,21 @@ draft args entryDraft =
             , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
             }
         ]
+    , maybe
+        |> Maybe.map Tuple.first
+        |> Maybe.map (Time.Extra.add Hour Config.postingCooldownInHours args.zone)
+        |> Maybe.map
+            (\p ->
+                "Draft will be posted on "
+                    ++ View.Posix.asWeekday args.zone p
+                    ++ " at "
+                    ++ View.Posix.asTime args.zone p
+                    |> Html.text
+                    |> Layout.el [ Attr.style "float" "right" ]
+            )
+        |> Maybe.withDefault Layout.none
+    ]
+        |> Layout.column []
 
 
 withUser : Zone -> ( User, Posix, EntryContent ) -> Html msg

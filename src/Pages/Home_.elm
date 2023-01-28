@@ -37,7 +37,7 @@ page shared _ =
 
 type alias Model =
     { page : Int
-    , entryDraft : Maybe EntryContent
+    , entryDraft : Maybe ( Posix, EntryContent )
     , trackers : List ( Id Tracker, Tracker )
     , entries : List ( User, Posix, EntryContent )
     }
@@ -71,6 +71,7 @@ type Msg
     = EntriesUpdated
     | GotEntries (List ( User, Posix, EntryContent ))
     | DraftUpdated EntryContent
+    | DraftCreated (Maybe ( Posix, EntryContent ))
     | GotTrackers (List ( Id Tracker, Tracker ))
     | AddedTracker String
     | DeletedTracker (Id Tracker)
@@ -100,10 +101,16 @@ update shared msg model =
                 entryDraft =
                     { d | content = String.slice 0 6 d.content }
             in
-            ( { model | entryDraft = Just entryDraft }
+            ( { model
+                | entryDraft =
+                    model.entryDraft |> Maybe.map (Tuple.mapSecond (\_ -> entryDraft))
+              }
             , AtHome (Bridge.DraftUpdated entryDraft)
                 |> sendToBackend
             )
+
+        DraftCreated draft ->
+            ( { model | entryDraft =  draft }, Cmd.none )
 
         GotTrackers trackers ->
             ( { model | trackers = trackers }, Cmd.none )
@@ -132,8 +139,7 @@ view shared model =
             Just _ ->
                 [ View.Style.sectionHeading "How was your day?"
                 , model.entryDraft
-                    |> Maybe.map (View.Entry.draft { onSubmit = DraftUpdated })
-                    |> Maybe.withDefault Layout.none
+                    |> View.Entry.draft { onSubmit = DraftUpdated, zone = shared.zone }
                 , [ View.Style.itemHeading "Trackers"
                   , model.trackers
                         |> View.Tracker.list { onDelete = DeletedTracker }
@@ -154,6 +160,6 @@ view shared model =
                 (\( user, posix, entry ) ->
                     View.Entry.withUser shared.zone ( user, posix, entry )
                 )
-            |> Layout.column [ Attr.class "container page" ]
+            |> Layout.column View.Style.container
         ]
     }

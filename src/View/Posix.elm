@@ -3,6 +3,13 @@ module View.Posix exposing (..)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 
 
+asTime : Zone -> Posix -> String
+asTime zone posix =
+    String.fromInt (Time.toHour zone posix)
+        ++ ":"
+        ++ String.fromInt (Time.toMinute zone posix)
+
+
 asWeekday : Zone -> Posix -> String
 asWeekday zone posix =
     case Time.toWeekday zone posix of
