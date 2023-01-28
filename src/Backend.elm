@@ -5,6 +5,8 @@ import Api.Data exposing (Data(..))
 import Api.User exposing (UserFull)
 import Bridge exposing (..)
 import Data.Entry
+import Data.Store
+import Data.Tracker
 import Dict
 import Dict.Extra as Dict
 import Gen.Msg
@@ -44,6 +46,7 @@ init =
       , comments = Dict.empty
       , entries = Dict.empty
       , drafts = Dict.empty
+      , trackers = Data.Store.empty
       , hour = Time.millisToPosix 0
       }
     , Cmd.none
@@ -159,7 +162,7 @@ updateFromFrontend sessionId clientId msg model =
             fn <|
                 case ( res, userM ) of
                     ( Success article, Just user ) ->
-                        if article.author.username == user.email then
+                        if article.author.username == user.username then
                             res
 
                         else
@@ -272,7 +275,7 @@ updateFromFrontend sessionId clientId msg model =
             let
                 ( response, cmd ) =
                     model.users
-                        |> Dict.find (\_ u -> u.email == params.email)
+                        |> Dict.find (\_ u -> u.username == params.username)
                         |> Maybe.map
                             (\( _, u ) ->
                                 if u.password == params.password then
@@ -288,19 +291,20 @@ updateFromFrontend sessionId clientId msg model =
         UserRegistration_Register { params } ->
             let
                 ( model_, cmd, res ) =
-                    if model.users |> Dict.any (\_ u -> u.email == params.email) then
-                        ( model, Cmd.none, Failure [ "email address already taken" ] )
+                    if model.users |> Dict.any (\_ u -> u.username == params.username) then
+                        ( model, Cmd.none, Failure [ "username already taken" ] )
 
                     else
                         let
+                            user_ : UserFull
                             user_ =
                                 { id = Dict.size model.users
-                                , email = params.email
                                 , username = params.username
                                 , bio = Nothing
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
                                 , favorites = []
+                                , trackers = []
                                 , following = Set.empty
                                 }
                         in
@@ -324,7 +328,6 @@ updateFromFrontend sessionId clientId msg model =
                                         -- , email = params.email
                                         , password = params.password |> Maybe.withDefault user.password
                                         , image = params.image
-                                        , bio = Just params.bio
                                     }
                             in
                             ( model |> updateUser user_, Success (Api.User.toUser user_) )
@@ -431,6 +434,92 @@ updateFromFrontend sessionId clientId msg model =
                         |> Maybe.withDefault Data.Entry.newDraft
                         |> (\draft ->
                                 ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftUpdated draft))) )
+                           )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        AtHome GetTrackers ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    user.trackers
+                        |> List.filterMap
+                            (\id ->
+                                model.trackers
+                                    |> Data.Store.get id
+                                    |> Maybe.map (Tuple.pair id)
+                            )
+                        |> (\trackers ->
+                                ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotTrackers trackers))) )
+                           )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        AtHome (AddTracker emoji) ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    model.trackers
+                        |> Data.Store.insert
+                            (emoji
+                                |> String.left 2
+                                |> Data.Tracker.new
+                            )
+                        |> Tuple.mapSecond
+                            (\id ->
+                                id :: user.trackers
+                            )
+                        |> (\( store, userTrackers ) ->
+                                ( { model
+                                    | trackers = store
+                                    , users =
+                                        model.users
+                                            |> Dict.insert user.id
+                                                { user | trackers = userTrackers }
+                                  }
+                                , userTrackers
+                                    |> List.filterMap
+                                        (\id ->
+                                            store
+                                                |> Data.Store.get id
+                                                |> Maybe.map (Tuple.pair id)
+                                        )
+                                    |> Pages.Home_.GotTrackers
+                                    |> Gen.Msg.Home_
+                                    |> PageMsg
+                                    |> send_
+                                )
+                           )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        AtHome (RemoveTracker trackerId) ->
+            case model |> getSessionUser sessionId of
+                Just user ->
+                    ( model.trackers |> Data.Store.remove trackerId
+                    , user.trackers |> List.filter ((/=) trackerId)
+                    )
+                        |> (\( store, userTrackers ) ->
+                                ( { model
+                                    | trackers = store
+                                    , users =
+                                        model.users
+                                            |> Dict.insert user.id
+                                                { user | trackers = userTrackers }
+                                  }
+                                , userTrackers
+                                    |> List.filterMap
+                                        (\id ->
+                                            store
+                                                |> Data.Store.get id
+                                                |> Maybe.map (Tuple.pair id)
+                                        )
+                                    |> Pages.Home_.GotTrackers
+                                    |> Gen.Msg.Home_
+                                    |> PageMsg
+                                    |> send_
+                                )
                            )
 
                 Nothing ->

@@ -34,8 +34,6 @@ page shared _ =
 type alias Model =
     { image : String
     , username : String
-    , bio : String
-    , email : String
     , password : Maybe String
     , message : Maybe String
     , errors : List String
@@ -48,8 +46,6 @@ init shared =
         Just user ->
             { image = user.image
             , username = user.username
-            , bio = user.bio |> Maybe.withDefault ""
-            , email = user.email
             , password = Nothing
             , message = Nothing
             , errors = []
@@ -58,8 +54,6 @@ init shared =
         Nothing ->
             { image = ""
             , username = ""
-            , bio = ""
-            , email = ""
             , password = Nothing
             , message = Nothing
             , errors = []
@@ -81,8 +75,6 @@ type Msg
 type Field
     = Image
     | Username
-    | Bio
-    | Email
     | Password
 
 
@@ -95,12 +87,6 @@ update msg model =
         Updated Username value ->
             ( { model | username = value }, Effect.none )
 
-        Updated Bio value ->
-            ( { model | bio = value }, Effect.none )
-
-        Updated Email value ->
-            ( { model | email = value }, Effect.none )
-
         Updated Password value ->
             ( { model | password = Just value }, Effect.none )
 
@@ -110,10 +96,8 @@ update msg model =
                 UserUpdate_Settings
                     { params =
                         { username = model.username
-                        , email = model.email
                         , password = model.password
                         , image = model.image
-                        , bio = model.bio
                         }
                     }
             )
@@ -174,26 +158,6 @@ view user model =
                                         , type_ "text"
                                         , value model.username
                                         , Events.onInput (Updated Username)
-                                        ]
-                                        []
-                                    ]
-                                , fieldset [ class "form-group" ]
-                                    [ textarea
-                                        [ class "form-control form-control-lg"
-                                        , placeholder "Short bio about you"
-                                        , attribute "rows" "8"
-                                        , value model.bio
-                                        , Events.onInput (Updated Bio)
-                                        ]
-                                        []
-                                    ]
-                                , fieldset [ class "form-group" ]
-                                    [ input
-                                        [ class "form-control form-control-lg"
-                                        , placeholder "Email"
-                                        , type_ "text"
-                                        , value model.email
-                                        , Events.onInput (Updated Email)
                                         ]
                                         []
                                     ]

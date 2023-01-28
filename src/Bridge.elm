@@ -2,6 +2,8 @@ module Bridge exposing (..)
 
 import Api.User exposing (User, UserId)
 import Data.Entry exposing (EntryContent)
+import Data.Store exposing (Id)
+import Data.Tracker exposing (Tracker)
 import Lamdera
 
 
@@ -13,6 +15,9 @@ type HomeToBackend
     = DraftUpdated EntryContent
     | GetEntriesOfSubscribed
     | GetDraft
+    | GetTrackers
+    | AddTracker String
+    | RemoveTracker (Id Tracker)
 
 
 type ProfileToBackend
@@ -35,15 +40,13 @@ type ToBackend
     | ArticleCommentCreate_Article__Slug_ { articleSlug : String, comment : { body : String } }
     | ArticleCommentDelete_Article__Slug_ { articleSlug : String, commentId : Int }
     | ProfileGet_Profile__Username_ { userId : UserId }
-    | UserAuthentication_Login { params : { email : String, password : String } }
+    | UserAuthentication_Login { params : { username : String, password : String } }
     | UserRegistration_Register { params : { username : String, email : String, password : String } }
     | UserUpdate_Settings
         { params :
             { username : String
-            , email : String
             , password : Maybe String
             , image : String
-            , bio : String
             }
         }
     | AtProfile { userId : UserId } ProfileToBackend

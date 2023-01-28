@@ -91,24 +91,21 @@ view req { page, toMsg } model =
             page.title ++ " | Emoji Diary"
     , body =
         css
-            ++ [ div [ class "layout" ]
-                    [ Components.Navbar.view
-                        { user = model.user
-                        , currentRoute = Utils.Route.fromUrl req.url
-                        , onSignOut = toMsg ClickedSignOut
-                        }
-                    , div [ class "page" ] page.body
-                    ]
+            ++ [ [ Components.Navbar.view
+                    { user = model.user
+                    , currentRoute = Utils.Route.fromUrl req.url
+                    , onSignOut = toMsg ClickedSignOut
+                    }
+                 , div [] page.body
+                 ]
+                    |> div [ Html.Attributes.attribute "data-theme" "lemonade" ]
                ]
     }
 
 
 css =
     -- Import Ionicon icons & Google Fonts our Bootstrap theme relies on
-    [ Html.node "link" [ rel "stylesheet", href "//code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css" ] []
-    , Html.node "link" [ rel "stylesheet", href "//fonts.googleapis.com/css?family=Titillium+Web:700|Source+Serif+Pro:400,700|Merriweather+Sans:400,700|Source+Sans+Pro:400,300,600,700,300italic,400italic,600italic,700italic" ] []
-
-    -- Import the custom Bootstrap 4 theme from our hosted CDN
-    , Html.node "link" [ rel "stylesheet", href "//demo.productionready.io/main.css" ] []
-    , Html.node "link" [ rel "stylesheet", href "/style.css" ] []
+    [ Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/daisyui@2.49.0/dist/full.css" ] []
+    , Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" ] []
+    , Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css" ] []
     ]

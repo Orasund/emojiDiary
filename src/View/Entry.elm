@@ -12,21 +12,17 @@ import View.Style
 
 draft : { onSubmit : EntryContent -> msg } -> EntryContent -> Html msg
 draft args entryDraft =
-    Layout.column []
-        [ View.Style.heading "How was your day?"
-        , Layout.row [ Layout.noWrap, Layout.spacing 8 ]
-            [ View.Style.input
-                { name = "Emoji"
-                , content = entryDraft.content
-                , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
-                }
-                |> Layout.el [ Html.Attributes.style "width" "100px" ]
-            , View.Style.input
-                { name = "Description"
-                , content = entryDraft.description
-                , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
-                }
-            ]
+    Layout.row [ Layout.noWrap, Layout.spacing 8 ]
+        [ View.Style.emojiInput
+            { name = "Mood"
+            , content = entryDraft.content
+            , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
+            }
+        , View.Style.input
+            { name = "Description"
+            , content = entryDraft.description
+            , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
+            }
         ]
 
 

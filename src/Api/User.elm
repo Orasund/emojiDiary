@@ -8,26 +8,26 @@ module Api.User exposing (..)
 
 import Api.Article exposing (Slug)
 import Api.Profile exposing (Profile)
+import Data.Store exposing (Id)
+import Data.Tracker exposing (Tracker)
 import Set exposing (Set)
 
 
 type alias User =
-    { id : Int
-    , email : Email
+    { id : UserId
     , username : String
-    , bio : Maybe String
     , image : String
     }
 
 
 type alias UserFull =
-    { id : Int
-    , email : Email
+    { id : UserId
     , username : String
     , bio : Maybe String
     , image : String
     , password : String
     , favorites : List Slug
+    , trackers : List (Id Tracker)
     , following : Set UserId
     }
 
@@ -39,9 +39,7 @@ type alias UserId =
 toUser : UserFull -> User
 toUser u =
     { id = u.id
-    , email = u.email
     , username = u.username
-    , bio = u.bio
     , image = u.image
     }
 
@@ -53,7 +51,3 @@ toProfile subscribed u =
     , image = u.image
     , following = subscribed
     }
-
-
-type alias Email =
-    String

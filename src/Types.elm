@@ -7,6 +7,8 @@ import Bridge
 import Browser
 import Browser.Navigation exposing (Key)
 import Data.Entry exposing (EntryContent)
+import Data.Store exposing (Store)
+import Data.Tracker exposing (Tracker)
 import Dict exposing (Dict)
 import Gen.Pages as Pages
 import Lamdera exposing (ClientId, SessionId)
@@ -28,6 +30,7 @@ type alias BackendModel =
     , users : Dict Int UserFull
     , articles : Dict Slug ArticleStore
     , comments : Dict Slug (Dict Int Comment)
+    , trackers : Store Tracker
     , drafts : Dict UserId ( Time.Posix, EntryContent )
     , entries : Dict UserId (Dict Int EntryContent)
     , hour : Time.Posix

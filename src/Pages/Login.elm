@@ -29,7 +29,7 @@ page shared req =
 
 type alias Model =
     { user : Data User
-    , email : String
+    , username : String
     , password : String
     }
 
@@ -61,15 +61,15 @@ type Msg
 
 
 type Field
-    = Email
+    = Username
     | Password
 
 
 update : Request -> Msg -> Model -> ( Model, Effect Msg )
 update req msg model =
     case msg of
-        Updated Email email ->
-            ( { model | email = email }
+        Updated Username username ->
+            ( { model | username = username }
             , Effect.none
             )
 
@@ -83,7 +83,7 @@ update req msg model =
             , (Effect.fromCmd << sendToBackend) <|
                 UserAuthentication_Login
                     { params =
-                        { email = model.email
+                        { username = model.username
                         , password = model.password
                         }
                     }
@@ -124,10 +124,10 @@ view model =
             , onFormSubmit = AttemptedSignIn
             , alternateLink = { label = "Need an account?", route = Route.Register }
             , fields =
-                [ { label = "Email"
-                  , type_ = "email"
-                  , value = model.email
-                  , onInput = Updated Email
+                [ { label = "Username"
+                  , type_ = "username"
+                  , value = model.username
+                  , onInput = Updated Username
                   }
                 , { label = "Password"
                   , type_ = "password"

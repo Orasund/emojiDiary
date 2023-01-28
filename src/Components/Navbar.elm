@@ -16,35 +16,31 @@ view :
     }
     -> Html msg
 view options =
-    nav [ class "navbar navbar-light" ]
-        [ div [ class "container" ]
-            [ a [ class "navbar-brand", href (Route.toHref Route.Home_) ] [ text "Emoji Diary" ]
-            , ul [ class "nav navbar-nav pull-xs-right" ] <|
-                case options.user of
-                    Just user ->
-                        List.concat
-                            [ List.map (viewLink options.currentRoute) <|
-                                [ ( "Home", Route.Home_ )
-                                , ( "Profile", Route.Profile__UserId_ { userId = String.fromInt user.id } )
-                                , ( "Settings", Route.Settings )
-                                ]
-                            , [ li [ class "nav-item" ]
-                                    [ View.Style.buttonText
-                                        { onPress = Just options.onSignOut
-                                        , label = "Sign out"
-                                        }
-                                    ]
-                              ]
-                            ]
-
-                    Nothing ->
-                        List.map (viewLink options.currentRoute) <|
-                            [ ( "Home", Route.Home_ )
-                            , ( "Sign in", Route.Login )
-                            , ( "Sign up", Route.Register )
-                            ]
+    [ text "Emoji Diary" |> Layout.el [ class "text-xl", Layout.fill ]
+    , case options.user of
+        Just user ->
+            [ [ ( "Home", Route.Home_ )
+              , ( "Profile", Route.Profile__UserId_ { userId = String.fromInt user.id } )
+              , ( "Settings", Route.Settings )
+              ]
+                |> List.map (viewLink options.currentRoute)
+                |> ul [ class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
+            , View.Style.buttonText
+                { onPress = Just options.onSignOut
+                , label = "Sign out"
+                }
             ]
-        ]
+                |> Layout.row [ Layout.spacing 16 ]
+
+        Nothing ->
+            [ ( "Home", Route.Home_ )
+            , ( "Sign in", Route.Login )
+            , ( "Sign up", Route.Register )
+            ]
+                |> List.map (viewLink options.currentRoute)
+                |> ul [ class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
+    ]
+        |> Layout.row [ class "navbar bg-base-100" ]
 
 
 viewLink : Route -> ( String, Route ) -> Html msg

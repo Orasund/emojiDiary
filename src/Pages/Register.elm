@@ -133,15 +133,10 @@ view model =
             , onFormSubmit = AttemptedSignUp
             , alternateLink = { label = "Have an account?", route = Route.Login }
             , fields =
-                [ { label = "Your Name"
+                [ { label = "Username"
                   , type_ = "text"
                   , value = model.username
                   , onInput = Updated Username
-                  }
-                , { label = "Email"
-                  , type_ = "email"
-                  , value = model.email
-                  , onInput = Updated Email
                   }
                 , { label = "Password"
                   , type_ = "password"
