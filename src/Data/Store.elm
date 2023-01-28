@@ -1,4 +1,4 @@
-module Data.Store exposing (Id, Store, empty, get, insert, read, remove, update)
+module Data.Store exposing (Id, Store, empty, get, insert, insertAll, read, remove, update)
 
 import Dict exposing (Dict)
 
@@ -27,6 +27,18 @@ insert a store =
       }
     , Id store.nextId
     )
+
+
+insertAll : List a -> Store a -> ( Store a, List (Id a) )
+insertAll list store =
+    list
+        |> List.foldl
+            (\a ( s, l ) ->
+                s
+                    |> insert a
+                    |> Tuple.mapSecond (\head -> head :: l)
+            )
+            ( store, [] )
 
 
 update : Id a -> (a -> a) -> Store a -> Store a

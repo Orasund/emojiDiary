@@ -185,13 +185,21 @@ updateFromFrontend sessionId clientId msg model =
 
                     else
                         let
+                            ( trackers, trackerIds ) =
+                                model.trackers
+                                    |> Data.Store.insertAll
+                                        [ { emoji = "💡", description = "Learned something" }
+                                        , { emoji = "💪", description = "Felt strong" }
+                                        , { emoji = "🥳", description = "Had a good time" }
+                                        ]
+
                             user_ : UserFull
                             user_ =
                                 { username = params.username
                                 , bio = Nothing
                                 , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
                                 , password = params.password
-                                , trackers = []
+                                , trackers = trackerIds
                                 }
 
                             ( store, userId ) =
@@ -200,6 +208,7 @@ updateFromFrontend sessionId clientId msg model =
                         ( { model
                             | users = store
                             , usernames = model.usernames |> Dict.insert params.username userId
+                            , trackers = trackers
                           }
                         , renewSession userId sessionId clientId
                         , Success (Api.User.toUser ( userId, user_ ))
