@@ -17,6 +17,7 @@ import Pages.Login
 import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
+import Set
 import Shared
 import Task
 import Time exposing (Posix, Zone)
@@ -74,25 +75,30 @@ updateAtHome send_ userId user msg model =
             model.following
                 |> Dict.get (Data.Store.read userId)
                 |> Maybe.withDefault []
-                |> List.filterMap
-                    (\id ->
+                |> List.map Data.Store.read
+                |> Set.fromList
+                |> (\following ->
                         model.users
-                            |> Data.Store.get id
-                            |> Maybe.map (Tuple.pair id)
-                    )
-                |> List.filterMap
-                    (\( id, u ) ->
-                        model.entries
-                            |> Dict.get (Data.Store.read id)
-                            |> Maybe.withDefault Dict.empty
-                            |> Dict.toList
-                            |> List.reverse
-                            |> List.head
-                            |> Maybe.map
-                                (\( date, entry ) ->
-                                    ( Data.User.toUser ( id, u ), Data.Date.toDate date, entry )
+                            |> Data.Store.toList
+                            |> List.filterMap
+                                (\( k, v ) ->
+                                    model.entries
+                                        |> Dict.get (Data.Store.read k)
+                                        |> Maybe.andThen
+                                            (\dict ->
+                                                dict |> Dict.toList |> List.reverse |> List.head
+                                            )
+                                        |> Maybe.map
+                                            (\( date, entry ) ->
+                                                ( Data.User.toUser ( k, v )
+                                                , Data.Date.toDate date
+                                                , entry
+                                                )
+                                            )
                                 )
-                    )
+                            |> List.partition (\( u, _, _ ) -> Set.member (Data.Store.read u.id) following)
+                            |> (\( a, b ) -> a ++ b)
+                   )
                 |> (\entries ->
                         ( model
                         , send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.GotEntries entries)))

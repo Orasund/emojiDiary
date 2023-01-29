@@ -176,11 +176,16 @@ viewProfile shared profile model =
                 |> View.Style.hero
     in
     [ viewUserInfo
-    , model.entries
-        |> List.map
-            (\( date, entry ) ->
-                View.Entry.toHtml date entry
-            )
+    , [ View.Style.sectionHeading "Yesterdays adventures"
+      , model.entries
+            |> List.map
+                (\( date, entry ) ->
+                    View.Entry.toHtml date entry
+                )
+            |> Layout.column [ Layout.spacing 4 ]
+      ]
         |> Layout.column View.Style.container
         |> Layout.el [ Layout.centerContent ]
     ]
+        |> Layout.column [ Layout.spacing 16 ]
+        |> List.singleton

@@ -228,11 +228,17 @@ view shared model =
           )
             |> Layout.column [ Layout.spacing 16 ]
             |> View.Style.hero
-        , model.entries
-            |> List.map
-                (\( user, posix, entry ) ->
-                    View.Entry.withUser shared.zone ( user, posix, entry )
-                )
+        , [ View.Style.sectionHeading "Yesterdays adventures"
+          , model.entries
+                |> List.map
+                    (\( user, posix, entry ) ->
+                        View.Entry.withUser shared.zone ( user, posix, entry )
+                    )
+                |> Layout.column [ Layout.spacing 4 ]
+          ]
             |> Layout.column View.Style.container
+            |> Layout.el [ Layout.centerContent ]
         ]
+            |> Layout.column [ Layout.spacing 16 ]
+            |> List.singleton
     }
