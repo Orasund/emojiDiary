@@ -20,7 +20,8 @@ type alias FrontendModel =
     { url : Url
     , key : Key
     , shared : Shared.Model
-    , page : Pages.Model
+    , pages : Dict String Pages.Model
+    , page : String
     }
 
 

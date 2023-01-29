@@ -17,3 +17,8 @@ postingCooldownInHours : Int
 postingCooldownInHours =
     --48
     2
+
+
+redirectHref : String
+redirectHref =
+    "#redirect"

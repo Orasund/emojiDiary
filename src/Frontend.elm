@@ -3,6 +3,8 @@ module Frontend exposing (..)
 import Browser
 import Browser.Dom
 import Browser.Navigation as Nav exposing (Key)
+import Config
+import Dict
 import Effect
 import Gen.Model
 import Gen.Pages as Pages
@@ -42,10 +44,21 @@ init url key =
         ( shared, sharedCmd ) =
             Shared.init (Request.create () url key) ()
 
+        route =
+            Route.fromUrl url
+
+        href =
+            Route.toHref route
+
         ( page, effect ) =
-            Pages.init (Route.fromUrl url) shared url key
+            Pages.init route shared url key
     in
-    ( FrontendModel url key shared page
+    ( { url = url
+      , key = key
+      , shared = shared
+      , pages = Dict.singleton href page
+      , page = href
+      }
     , Cmd.batch
         [ Cmd.map Shared sharedCmd
         , Effect.toCmd ( Shared, Page ) effect
@@ -81,12 +94,24 @@ update msg model =
         ChangedUrl url ->
             if url.path /= model.url.path then
                 let
+                    route =
+                        Route.fromUrl url
+
+                    href =
+                        Route.toHref route
+
                     ( page, effect ) =
-                        Pages.init (Route.fromUrl url) model.shared url model.key
+                        case model.pages |> Dict.get href of
+                            Just p ->
+                                ( p, Effect.none )
+
+                            Nothing ->
+                                Pages.init (Route.fromUrl url) model.shared url model.key
                 in
                 ( { model
                     | url = url
-                    , page = page
+                    , pages = model.pages |> Dict.insert href page
+                    , page = href
                     , shared =
                         model.shared
                             |> (\m -> { m | error = Nothing })
@@ -106,7 +131,11 @@ update msg model =
                     Pages.init (Route.fromUrl model.url) shared model.url model.key
             in
             if page == Gen.Model.Redirecting_ then
-                ( { model | shared = shared, page = page }
+                ( { model
+                    | shared = shared
+                    , pages = model.pages |> Dict.insert Config.redirectHref page
+                    , page = Config.redirectHref
+                  }
                 , Cmd.batch
                     [ Cmd.map Shared sharedCmd
                     , Effect.toCmd ( Shared, Page ) effect
@@ -120,10 +149,16 @@ update msg model =
 
         Page pageMsg ->
             let
+                m =
+                    model.pages
+                        |> Dict.get model.page
+                        --Dead Branch
+                        |> Maybe.withDefault Gen.Model.Redirecting_
+
                 ( page, effect ) =
-                    Pages.update pageMsg model.page model.shared model.url model.key
+                    Pages.update pageMsg m model.shared model.url model.key
             in
-            ( { model | page = page }
+            ( { model | pages = model.pages |> Dict.insert model.page page }
             , Effect.toCmd ( Shared, Page ) effect
             )
 
@@ -155,7 +190,13 @@ view : Model -> Browser.Document Msg
 view model =
     Shared.view (Request.create () model.url model.key)
         { page =
-            Pages.view model.page model.shared model.url model.key
+            model.pages
+                |> Dict.get model.page
+                --Dead Branch
+                |> Maybe.withDefault Gen.Model.Redirecting_
+                |> (\p ->
+                        Pages.view p model.shared model.url model.key
+                   )
                 |> View.map Page
         , toMsg = Shared
         }
@@ -168,7 +209,10 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Pages.subscriptions model.page model.shared model.url model.key |> Sub.map Page
-        , Shared.subscriptions (Request.create () model.url model.key) model.shared |> Sub.map Shared
-        ]
+    model.pages
+        |> Dict.get model.page
+        |> Maybe.map (\p -> Pages.subscriptions p model.shared model.url model.key |> Sub.map Page)
+        |> Maybe.map List.singleton
+        |> Maybe.withDefault []
+        |> (::) (Shared.subscriptions (Request.create () model.url model.key) model.shared |> Sub.map Shared)
+        |> Sub.batch
