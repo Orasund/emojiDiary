@@ -110,9 +110,23 @@ view req { page, toMsg } model =
                  , model.error
                     |> Maybe.map View.Style.error
                     |> Maybe.withDefault Layout.none
+                 , page.body
+                    |> Html.div [ Html.Attributes.style "height" "100%" ]
+                 , Html.footer [ Html.Attributes.class "footer items-center p-4 bg-neutral text-neutral-content" ]
+                    [ [ Layout.el [] Layout.none
+                      , [ "Created in 2023 by" |> Html.text |> Layout.el []
+                        , [ Html.text "Lucas Payr " |> Layout.el [ Layout.alignAtCenter ]
+                          , Layout.el [ Html.Attributes.class "bi bi-linkedin", Layout.alignAtCenter ] Layout.none
+                          ]
+                            |> Layout.row [ Layout.spacing 8 ]
+                            |> Layout.linkTo "https://www.linkedin.com/in/lucas-payr-8462911b9/" []
+                        ]
+                            |> Layout.row [ Layout.spacing 4 ]
+                      ]
+                        |> Layout.row [ Html.Attributes.style "width" "100%", Layout.spaceBetween ]
+                    ]
                  ]
-                    ++ page.body
-                    |> Layout.column [ Layout.fill, Html.Attributes.attribute "data-theme" "lemonade" ]
+                    |> Layout.column [ Html.Attributes.style "height" "100%", Html.Attributes.attribute "data-theme" "lemonade" ]
                ]
     }
 
@@ -122,4 +136,5 @@ css =
     [ Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/daisyui@2.49.0/dist/full.css" ] []
     , Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/tailwindcss@2.2/dist/tailwind.min.css" ] []
     , Html.node "link" [ rel "stylesheet", href "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css" ] []
+    , Html.node "style" [] [ Html.text ":root {\n    height: 100%;background-color: white\n}\n body { height: 100%}" ]
     ]

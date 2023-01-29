@@ -229,10 +229,12 @@ update sessionId clientId msg model =
                     fun a
 
                 Nothing ->
-                    "Please sign in"
+                    ( model, Cmd.none )
+
+        {--"Please sign in"
                         |> Shared.GotError
                         |> SharedMsg
-                        |> send
+                        |> send--}
     in
     case msg of
         SignedOut _ ->

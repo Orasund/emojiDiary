@@ -177,8 +177,7 @@ viewProfile shared profile model =
                 |> View.Style.hero
     in
     [ viewUserInfo
-    , [ View.Style.sectionHeading "Yesterdays adventures"
-      , model.entries
+    , [ model.entries
             |> List.map
                 (\( date, entry ) ->
                     View.Entry.toHtml date entry

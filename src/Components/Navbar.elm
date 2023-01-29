@@ -15,13 +15,12 @@ view :
     }
     -> Html msg
 view options =
-    [ Html.img [ Attr.src "favicon.svg", Attr.width 30, Attr.height 30 ] []
+    [ Html.img [ Attr.src "/favicon.svg", Attr.width 30, Attr.height 30 ] []
     , text "Emoji Diary" |> Layout.el [ Attr.class "text-xl", Layout.fill ]
     , case options.user of
         Just user ->
             [ [ ( "Home", Route.Home_ )
               , ( "Profile", Route.Profile__UserId_ { userId = user.username } )
-              , ( "Settings", Route.Settings )
               ]
                 |> List.map (viewLink options.currentRoute)
                 |> ul [ Attr.class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]

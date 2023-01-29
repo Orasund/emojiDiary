@@ -7,8 +7,10 @@ import Data.User exposing (UserInfo)
 import Effect exposing (Effect)
 import Gen.Route as Route
 import Html
+import Html.Events
 import Layout
 import Page
+import Pages.Register exposing (Msg(..))
 import Request exposing (Request)
 import Shared
 import Utils.Route
@@ -150,6 +152,8 @@ view model =
             }
         ]
             |> Layout.column [ Layout.spacing 32 ]
+            |> List.singleton
+            |> Html.form [ Html.Events.onSubmit AttemptedSignIn ]
             |> View.Style.hero
             |> List.singleton
     }
