@@ -91,10 +91,12 @@ buttonText args =
 
 error : String -> Html msg
 error err =
-    Html.text err
+    [ Layout.el [ Attr.class "bi bi-x-circle" ] Layout.none
+    , Html.text err
         |> List.singleton
         |> Html.span []
-        |> Layout.el [ Attr.class "alert alert-error shadow-lg" ]
+    ]
+        |> Layout.row [ Attr.class "alert alert-error shadow-lg" ]
 
 
 container : List (Attribute msg)

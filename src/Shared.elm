@@ -19,6 +19,7 @@ import Task
 import Time exposing (Zone)
 import Utils.Route
 import View exposing (View)
+import View.Style
 
 
 
@@ -31,13 +32,17 @@ type alias Flags =
 
 type alias Model =
     { user : Maybe User
+    , error : Maybe String
     , zone : Zone
     }
 
 
 init : Request -> Flags -> ( Model, Cmd Msg )
-init _ json =
-    ( { user = Nothing, zone = Time.utc }
+init _ _ =
+    ( { user = Nothing
+      , zone = Time.utc
+      , error = Nothing
+      }
     , Task.perform GotZone Time.here
     )
 
@@ -49,6 +54,7 @@ init _ json =
 type Msg
     = ClickedSignOut
     | SignedInUser User
+    | GotError String
     | GotZone Zone
 
 
@@ -64,6 +70,9 @@ update _ msg model =
             ( { model | user = Nothing }
             , model.user |> Maybe.map (\user -> sendToBackend (SignedOut user)) |> Maybe.withDefault Cmd.none
             )
+
+        GotError string ->
+            ( { model | error = Just string }, Cmd.none )
 
         GotZone zone ->
             ( { model | zone = zone }, Cmd.none )
@@ -92,12 +101,16 @@ view req { page, toMsg } model =
             page.title ++ " | Emoji Diary"
     , body =
         css
-            ++ [ Components.Navbar.view
+            ++ [ [ Components.Navbar.view
                     { user = model.user
                     , currentRoute = Utils.Route.fromUrl req.url
                     , onSignOut = toMsg ClickedSignOut
                     }
-                    :: page.body
+                 , model.error
+                    |> Maybe.map View.Style.error
+                    |> Maybe.withDefault Layout.none
+                 ]
+                    ++ page.body
                     |> Layout.column [ Layout.fill, Html.Attributes.attribute "data-theme" "lemonade" ]
                ]
     }

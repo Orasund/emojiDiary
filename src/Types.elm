@@ -61,4 +61,5 @@ type BackendMsg
 type ToFrontend
     = ActiveSession User
     | PageMsg Pages.Msg
+    | SharedMsg Shared.Msg
     | NoOpToFrontend

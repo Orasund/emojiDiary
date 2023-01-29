@@ -1,6 +1,6 @@
 module Bridge exposing (..)
 
-import Api.User exposing (User, UserFull, UserId)
+import Api.User exposing (User, UserFull)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)

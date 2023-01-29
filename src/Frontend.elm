@@ -134,6 +134,9 @@ updateFromBackend msg model =
         PageMsg pageMsg ->
             update (Page pageMsg) model
 
+        SharedMsg sharedMsg ->
+            update (Shared sharedMsg) model
+
         NoOpToFrontend ->
             ( model, Cmd.none )
 
