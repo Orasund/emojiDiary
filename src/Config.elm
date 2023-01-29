@@ -10,13 +10,13 @@ title =
 postingMinCooldownInHours : Int
 postingMinCooldownInHours =
     --24
-    1
+    6
 
 
 postingCooldownInHours : Int
 postingCooldownInHours =
     --48
-    2
+    12
 
 
 redirectHref : String

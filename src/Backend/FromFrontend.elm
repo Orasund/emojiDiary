@@ -32,42 +32,52 @@ type alias Model =
 updateAtHome : (ToFrontend -> Cmd BackendMsg) -> Id UserFull -> UserFull -> HomeToBackend -> Model -> ( Model, Cmd BackendMsg )
 updateAtHome send_ userId user msg model =
     case msg of
-        DraftUpdated ( z, draft ) ->
+        DraftUpdated m ->
             model.drafts
                 |> Dict.get (Data.Store.read userId)
                 |> (\maybe ->
                         ( { model
                             | drafts =
-                                if String.isEmpty draft.content then
-                                    model.drafts |> Dict.remove (Data.Store.read userId)
+                                case m of
+                                    Just ( z, draft ) ->
+                                        if String.isEmpty draft.content then
+                                            model.drafts |> Dict.remove (Data.Store.read userId)
 
-                                else
-                                    model.drafts
-                                        |> Dict.insert (Data.Store.read userId)
-                                            (maybe
-                                                |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, draft ))
-                                                |> Maybe.withDefault ( model.hour, z, draft )
-                                            )
+                                        else
+                                            model.drafts
+                                                |> Dict.insert (Data.Store.read userId)
+                                                    (maybe
+                                                        |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, draft ))
+                                                        |> Maybe.withDefault ( model.hour, z, draft )
+                                                    )
+
+                                    Nothing ->
+                                        model.drafts |> Dict.remove (Data.Store.read userId)
                           }
-                        , case maybe of
-                            Just _ ->
-                                if String.isEmpty draft.content then
-                                    Nothing
-                                        |> Pages.Home_.DraftCreated
-                                        |> Gen.Msg.Home_
-                                        |> PageMsg
-                                        |> send_
+                        , case m of
+                            Just ( z, draft ) ->
+                                case maybe of
+                                    Just _ ->
+                                        if String.isEmpty draft.content then
+                                            Nothing
+                                                |> Pages.Home_.DraftCreated
+                                                |> Gen.Msg.Home_
+                                                |> PageMsg
+                                                |> send_
 
-                                else
-                                    Cmd.none
+                                        else
+                                            Cmd.none
+
+                                    Nothing ->
+                                        ( model.hour, z, draft )
+                                            |> Just
+                                            |> Pages.Home_.DraftCreated
+                                            |> Gen.Msg.Home_
+                                            |> PageMsg
+                                            |> send_
 
                             Nothing ->
-                                ( model.hour, z, draft )
-                                    |> Just
-                                    |> Pages.Home_.DraftCreated
-                                    |> Gen.Msg.Home_
-                                    |> PageMsg
-                                    |> send_
+                                Cmd.none
                         )
                    )
 

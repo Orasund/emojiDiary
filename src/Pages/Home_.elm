@@ -76,6 +76,7 @@ type Msg
     | GotEntries (List ( UserInfo, Date, EntryContent ))
     | DraftUpdated EntryContent
     | DraftCreated (Maybe ( Posix, Zone, EntryContent ))
+    | StoppedUpdatingDraft
     | PublishDraft
     | GotTrackers (List ( Id Tracker, Tracker ))
     | AddedTracker String
@@ -101,13 +102,37 @@ update shared msg model =
         DraftUpdated d ->
             let
                 entryDraft =
-                    { d | content = String.slice 0 6 d.content }
+                    { d
+                        | content = String.left 6 d.content
+                        , description = String.left 50 d.description
+                    }
+
+                shouldDelete =
+                    String.isEmpty d.content
             in
             ( { model
                 | entryDraft =
-                    model.entryDraft |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, entryDraft ))
+                    if shouldDelete then
+                        Nothing
+
+                    else
+                        case model.entryDraft of
+                            Just ( posix, zone, _ ) ->
+                                Just ( posix, zone, entryDraft )
+
+                            Nothing ->
+                                model.time
+                                    |> Maybe.map (\time -> ( time, shared.zone, entryDraft ))
               }
-            , AtHome (Bridge.DraftUpdated ( shared.zone, entryDraft ))
+            , Cmd.none
+            )
+
+        StoppedUpdatingDraft ->
+            ( model
+            , model.entryDraft
+                |> Maybe.map (\( _, zone, draft ) -> ( zone, draft ))
+                |> Bridge.DraftUpdated
+                |> AtHome
                 |> sendToBackend
             )
 
@@ -154,7 +179,11 @@ view shared model =
             Just _ ->
                 [ View.Style.sectionHeading "How was your day?"
                 , model.entryDraft
-                    |> View.Entry.draft { onSubmit = DraftUpdated, zone = shared.zone }
+                    |> View.Entry.draft
+                        { onSubmit = DraftUpdated
+                        , onBlur = StoppedUpdatingDraft
+                        , zone = shared.zone
+                        }
                 , model.entryDraft
                     |> Maybe.map
                         (\( posix, zone, _ ) ->
@@ -232,7 +261,7 @@ view shared model =
           , model.entries
                 |> List.map
                     (\( user, posix, entry ) ->
-                        View.Entry.withUser shared.zone ( user, posix, entry )
+                        View.Entry.withUser ( user, posix, entry )
                     )
                 |> Layout.column [ Layout.spacing 4 ]
           ]

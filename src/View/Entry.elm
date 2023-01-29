@@ -1,11 +1,10 @@
 module View.Entry exposing (..)
 
-import Config
 import Data.Date exposing (Date)
 import Data.Entry exposing (EntryContent)
 import Data.User exposing (UserInfo)
 import Html exposing (Html)
-import Html.Attributes as Attr
+import Html.Events
 import Layout
 import Time exposing (Posix, Zone)
 import Time.Extra exposing (Interval(..))
@@ -13,7 +12,7 @@ import View.Date
 import View.Style
 
 
-draft : { onSubmit : EntryContent -> msg, zone : Zone } -> Maybe ( Posix, Zone, EntryContent ) -> Html msg
+draft : { onSubmit : EntryContent -> msg, onBlur : msg, zone : Zone } -> Maybe ( Posix, Zone, EntryContent ) -> Html msg
 draft args maybe =
     let
         entryDraft =
@@ -27,7 +26,7 @@ draft args maybe =
             , content = entryDraft.content
             , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
             }
-        , View.Style.input
+        , View.Style.input [ Html.Events.onBlur args.onBlur ]
             { name = "Description"
             , content = entryDraft.description
             , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
@@ -37,8 +36,8 @@ draft args maybe =
         |> Layout.column []
 
 
-withUser : Zone -> ( UserInfo, Date, EntryContent ) -> Html msg
-withUser zone ( user, date, entry ) =
+withUser : ( UserInfo, Date, EntryContent ) -> Html msg
+withUser ( user, date, entry ) =
     Layout.row [ Layout.spacing 16 ]
         [ entry.content |> Html.text |> Layout.el []
         , entry.description |> Html.text |> Layout.el [ Layout.fill ]

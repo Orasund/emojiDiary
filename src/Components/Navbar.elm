@@ -3,8 +3,7 @@ module Components.Navbar exposing (view)
 import Data.User exposing (UserInfo)
 import Gen.Route as Route exposing (Route)
 import Html exposing (..)
-import Html.Attributes exposing (class, classList, href)
-import Html.Events as Events
+import Html.Attributes as Attr
 import Layout
 import View.Style
 
@@ -16,7 +15,8 @@ view :
     }
     -> Html msg
 view options =
-    [ text "Emoji Diary" |> Layout.el [ class "text-xl", Layout.fill ]
+    [ Html.img [ Attr.src "favicon.svg", Attr.width 30, Attr.height 30 ] []
+    , text "Emoji Diary" |> Layout.el [ Attr.class "text-xl", Layout.fill ]
     , case options.user of
         Just user ->
             [ [ ( "Home", Route.Home_ )
@@ -24,7 +24,7 @@ view options =
               , ( "Settings", Route.Settings )
               ]
                 |> List.map (viewLink options.currentRoute)
-                |> ul [ class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
+                |> ul [ Attr.class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
             , View.Style.buttonText
                 { onPress = Just options.onSignOut
                 , label = "Sign out"
@@ -38,18 +38,18 @@ view options =
             , ( "Sign up", Route.Register )
             ]
                 |> List.map (viewLink options.currentRoute)
-                |> ul [ class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
+                |> ul [ Attr.class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
     ]
-        |> Layout.row [ class "navbar bg-base-100" ]
+        |> Layout.row [ Attr.class "navbar bg-base-100", Layout.spacing 16 ]
 
 
 viewLink : Route -> ( String, Route ) -> Html msg
 viewLink currentRoute ( label, route ) =
-    li [ class "nav-item" ]
+    li [ Attr.class "nav-item" ]
         [ a
-            [ class "nav-link"
-            , classList [ ( "active", currentRoute == route ) ]
-            , href (Route.toHref route)
+            [ Attr.class "nav-link"
+            , Attr.classList [ ( "active", currentRoute == route ) ]
+            , Attr.href (Route.toHref route)
             ]
             [ text label ]
         ]

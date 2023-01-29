@@ -6,7 +6,7 @@ import Components.ErrorList
 import Data.User exposing (UserInfo)
 import Effect exposing (Effect)
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, placeholder, type_, value)
+import Html.Attributes exposing (class, placeholder, type_, value)
 import Html.Events as Events
 import Page
 import Request exposing (Request)
@@ -90,7 +90,7 @@ update msg model =
         Updated Password value ->
             ( { model | password = Just value }, Effect.none )
 
-        SubmittedForm user ->
+        SubmittedForm _ ->
             ( { model | message = Nothing, errors = [] }
             , (Effect.fromCmd << sendToBackend) <|
                 UserUpdate_Settings

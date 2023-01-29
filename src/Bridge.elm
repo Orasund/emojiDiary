@@ -13,7 +13,7 @@ sendToBackend =
 
 
 type HomeToBackend
-    = DraftUpdated ( Zone, EntryContent )
+    = DraftUpdated (Maybe ( Zone, EntryContent ))
     | GetEntriesOfSubscribed
     | GetDraft
     | GetTrackers

@@ -49,15 +49,17 @@ hero content =
             )
 
 
-input : { name : String, content : String, onInput : String -> msg } -> Html msg
-input args =
+input : List (Attribute msg) -> { name : String, content : String, onInput : String -> msg } -> Html msg
+input attr args =
     Html.input
-        [ Attr.class "input w-full max-w-xs"
-        , Attr.placeholder args.name
-        , Attr.type_ "text"
-        , Attr.value args.content
-        , Events.onInput args.onInput
-        ]
+        ([ Attr.class "input w-full max-w-xs"
+         , Attr.placeholder args.name
+         , Attr.type_ "text"
+         , Attr.value args.content
+         , Events.onInput args.onInput
+         ]
+            ++ attr
+        )
         []
         |> Layout.el []
 

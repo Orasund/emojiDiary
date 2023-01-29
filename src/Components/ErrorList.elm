@@ -1,7 +1,6 @@
 module Components.ErrorList exposing (view)
 
 import Html exposing (..)
-import Html.Attributes exposing (class)
 import Layout
 import View.Style
 

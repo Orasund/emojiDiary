@@ -83,7 +83,7 @@ update msg model =
                             (\userId ( posix, zone, _ ) ->
                                 if
                                     (posix
-                                        |> Time.Extra.add Hour Config.postingCooldownInHours zone
+                                        |> Time.Extra.add Hour (Config.postingCooldownInHours - 1) zone
                                         |> Time.posixToMillis
                                     )
                                         < Time.posixToMillis currentTime
