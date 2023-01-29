@@ -19,6 +19,7 @@ type HomeToBackend
     | GetTrackers
     | AddTracker String
     | RemoveTracker (Id Tracker)
+    | EditTracker ( Id Tracker, Tracker )
     | PublishDraft
 
 

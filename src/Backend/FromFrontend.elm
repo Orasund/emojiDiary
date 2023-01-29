@@ -60,7 +60,7 @@ updateAtHome send_ userId user msg model =
                                     Just _ ->
                                         if String.isEmpty draft.content then
                                             Nothing
-                                                |> Pages.Home_.DraftCreated
+                                                |> Pages.Home_.CreatedDraft
                                                 |> Gen.Msg.Home_
                                                 |> PageMsg
                                                 |> send_
@@ -71,7 +71,7 @@ updateAtHome send_ userId user msg model =
                                     Nothing ->
                                         ( model.hour, z, draft )
                                             |> Just
-                                            |> Pages.Home_.DraftCreated
+                                            |> Pages.Home_.CreatedDraft
                                             |> Gen.Msg.Home_
                                             |> PageMsg
                                             |> send_
@@ -119,7 +119,7 @@ updateAtHome send_ userId user msg model =
             model.drafts
                 |> Dict.get (Data.Store.read userId)
                 |> (\draft ->
-                        ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.DraftCreated draft))) )
+                        ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.CreatedDraft draft))) )
                    )
 
         GetTrackers ->
@@ -193,6 +193,15 @@ updateAtHome send_ userId user msg model =
                         )
                    )
 
+        EditTracker ( id, tracker ) ->
+            ( { model
+                | trackers =
+                    model.trackers
+                        |> Data.Store.update id (\_ -> tracker)
+              }
+            , Cmd.none
+            )
+
         PublishDraft ->
             let
                 ( entries, drafts ) =
@@ -200,7 +209,7 @@ updateAtHome send_ userId user msg model =
                         |> publishDraft (Data.Store.read userId)
             in
             ( { model | entries = entries, drafts = drafts }
-            , Gen.Msg.Home_ Pages.Home_.EntriesUpdated |> PageMsg |> send_
+            , Gen.Msg.Home_ Pages.Home_.UpdatedEntries |> PageMsg |> send_
             )
 
 

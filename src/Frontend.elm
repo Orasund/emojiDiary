@@ -101,12 +101,15 @@ update msg model =
                         Route.toHref route
 
                     ( page, effect ) =
-                        case model.pages |> Dict.get href of
-                            Just p ->
-                                ( p, Effect.none )
+                        Pages.init (Route.fromUrl url) model.shared url model.key
+                            |> (\( p0, e ) ->
+                                    case model.pages |> Dict.get href of
+                                        Just p ->
+                                            ( p, e )
 
-                            Nothing ->
-                                Pages.init (Route.fromUrl url) model.shared url model.key
+                                        Nothing ->
+                                            ( p0, e )
+                               )
                 in
                 ( { model
                     | url = url

@@ -1,5 +1,6 @@
 module Pages.Home_ exposing (Model, Msg(..), page)
 
+import Array exposing (Array)
 import Bridge exposing (..)
 import Config
 import Data.Date exposing (Date)
@@ -39,21 +40,23 @@ page shared _ =
 type alias Model =
     { page : Int
     , entryDraft : Maybe ( Posix, Zone, EntryContent )
-    , trackers : List ( Id Tracker, Tracker )
+    , trackers : Array ( Id Tracker, Tracker )
     , entries : List ( UserInfo, Date, EntryContent )
+    , focusedTracker : Maybe Int
     , time : Maybe Posix
     }
 
 
 init : Shared.Model -> ( Model, Cmd Msg )
-init _ =
+init shared =
     let
         model : Model
         model =
             { page = 1
             , entryDraft = Nothing
-            , trackers = []
+            , trackers = Array.empty
             , entries = []
+            , focusedTracker = Nothing
             , time = Nothing
             }
     in
@@ -72,15 +75,17 @@ init _ =
 
 
 type Msg
-    = EntriesUpdated
+    = UpdatedEntries
     | GotEntries (List ( UserInfo, Date, EntryContent ))
-    | DraftUpdated EntryContent
-    | DraftCreated (Maybe ( Posix, Zone, EntryContent ))
-    | StoppedUpdatingDraft
+    | UpdatedDraft EntryContent
+    | CreatedDraft (Maybe ( Posix, Zone, EntryContent ))
+    | FinishedUpdatingDraft
     | PublishDraft
     | GotTrackers (List ( Id Tracker, Tracker ))
     | AddedTracker String
     | DeletedTracker (Id Tracker)
+    | EditedTracker ( Int, Tracker )
+    | FinishedEditingTracker Int
     | GotTime Posix
 
 
@@ -92,14 +97,14 @@ update shared msg model =
             , Cmd.none
             )
 
-        EntriesUpdated ->
+        UpdatedEntries ->
             ( model
             , [ AtHome Bridge.GetDraft |> sendToBackend
               ]
                 |> Cmd.batch
             )
 
-        DraftUpdated d ->
+        UpdatedDraft d ->
             let
                 entryDraft =
                     { d
@@ -127,7 +132,7 @@ update shared msg model =
             , Cmd.none
             )
 
-        StoppedUpdatingDraft ->
+        FinishedUpdatingDraft ->
             ( model
             , model.entryDraft
                 |> Maybe.map (\( _, zone, draft ) -> ( zone, draft ))
@@ -136,11 +141,11 @@ update shared msg model =
                 |> sendToBackend
             )
 
-        DraftCreated draft ->
+        CreatedDraft draft ->
             ( { model | entryDraft = draft }, Cmd.none )
 
         GotTrackers trackers ->
-            ( { model | trackers = trackers }, Cmd.none )
+            ( { model | trackers = trackers |> Array.fromList }, Cmd.none )
 
         AddedTracker emoji ->
             ( model
@@ -153,6 +158,29 @@ update shared msg model =
             , Bridge.RemoveTracker id
                 |> AtHome
                 |> sendToBackend
+            )
+
+        EditedTracker ( index, tracker ) ->
+            ( { model
+                | trackers =
+                    model.trackers
+                        |> Array.get index
+                        |> Maybe.map (\( id, _ ) -> model.trackers |> Array.set index ( id, tracker ))
+                        |> Maybe.withDefault model.trackers
+                , focusedTracker =
+                    Just index
+              }
+            , Cmd.none
+            )
+
+        FinishedEditingTracker index ->
+            ( { model | focusedTracker = Nothing }
+            , model.trackers
+                |> Array.get index
+                |> Maybe.map Bridge.EditTracker
+                |> Maybe.map AtHome
+                |> Maybe.map sendToBackend
+                |> Maybe.withDefault Cmd.none
             )
 
         PublishDraft ->
@@ -180,8 +208,8 @@ view shared model =
                 [ View.Style.sectionHeading "How was your day?"
                 , model.entryDraft
                     |> View.Entry.draft
-                        { onSubmit = DraftUpdated
-                        , onBlur = StoppedUpdatingDraft
+                        { onSubmit = UpdatedDraft
+                        , onBlur = FinishedUpdatingDraft
                         , zone = shared.zone
                         }
                 , model.entryDraft
@@ -233,6 +261,7 @@ view shared model =
                     |> Maybe.withDefault Layout.none
                 , [ View.Style.itemHeading "Trackers"
                   , model.trackers
+                        |> Array.toList
                         |> View.Tracker.list
                             { onDelete = DeletedTracker
                             , onClick =
@@ -243,7 +272,10 @@ view shared model =
                                         |> (\draft ->
                                                 { draft | content = draft.content ++ string }
                                            )
-                                        |> DraftUpdated
+                                        |> UpdatedDraft
+                            , onBlur = FinishedEditingTracker
+                            , onEdit = EditedTracker
+                            , focusedTracker = model.focusedTracker
                             }
                   , View.Tracker.new { onInput = AddedTracker }
                   ]
@@ -257,16 +289,21 @@ view shared model =
           )
             |> Layout.column [ Layout.spacing 16 ]
             |> View.Style.hero
-        , [ View.Style.sectionHeading "Yesterdays adventures"
-          , model.entries
-                |> List.map
-                    (\( user, posix, entry ) ->
-                        View.Entry.withUser ( user, posix, entry )
-                    )
-                |> Layout.column [ Layout.spacing 4 ]
-          ]
-            |> Layout.column View.Style.container
-            |> Layout.el [ Layout.centerContent ]
+        , case shared.user of
+            Just _ ->
+                [ View.Style.sectionHeading "Yesterdays adventures"
+                , model.entries
+                    |> List.map
+                        (\( user, posix, entry ) ->
+                            View.Entry.withUser ( user, posix, entry )
+                        )
+                    |> Layout.column [ Layout.spacing 4 ]
+                ]
+                    |> Layout.column View.Style.container
+                    |> Layout.el [ Layout.centerContent ]
+
+            Nothing ->
+                Layout.none
         ]
             |> Layout.column [ Layout.spacing 16 ]
             |> List.singleton

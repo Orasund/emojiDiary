@@ -8,7 +8,15 @@ asTime : Zone -> Posix -> String
 asTime zone posix =
     String.fromInt (Time.toHour zone posix)
         ++ ":"
-        ++ String.fromInt (Time.toMinute zone posix)
+        ++ (Time.toMinute zone posix
+                |> (\int ->
+                        if int < 10 then
+                            "0" ++ String.fromInt int
+
+                        else
+                            String.fromInt int
+                   )
+           )
 
 
 weekdayToString : Weekday -> String

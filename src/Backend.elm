@@ -100,7 +100,7 @@ update msg model =
                 , entries = entries
                 , drafts = drafts
               }
-            , broadcast (PageMsg (Gen.Msg.Home_ Pages.Home_.EntriesUpdated))
+            , broadcast (PageMsg (Gen.Msg.Home_ Pages.Home_.UpdatedEntries))
             )
 
         NoOpBackendMsg ->

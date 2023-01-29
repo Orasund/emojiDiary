@@ -25,7 +25,7 @@ view options =
               ]
                 |> List.map (viewLink options.currentRoute)
                 |> ul [ Attr.class "menu p-2 menu-horizontal bg-base-100 rounded-box" ]
-            , View.Style.buttonText
+            , View.Style.buttonText []
                 { onPress = Just options.onSignOut
                 , label = "Sign out"
                 }

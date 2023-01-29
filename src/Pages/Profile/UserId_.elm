@@ -157,7 +157,8 @@ viewProfile shared profile model =
                 Layout.none
 
                else if profile.following then
-                View.Style.buttonText { onPress = Just ToggleFollowing, label = "Unsubscribe" }
+                View.Style.buttonText []
+                    { onPress = Just ToggleFollowing, label = "Unsubscribe" }
                     |> List.singleton
                     |> Html.div []
 

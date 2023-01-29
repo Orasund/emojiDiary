@@ -84,11 +84,13 @@ button args =
             [ Attr.class "btn btn-primary" ]
 
 
-buttonText : { onPress : Maybe msg, label : String } -> Html msg
-buttonText args =
+buttonText : List (Attribute msg) -> { onPress : Maybe msg, label : String } -> Html msg
+buttonText attrs args =
     Html.text args.label
         |> Layout.buttonEl { onPress = args.onPress, label = args.label }
-            [ Attr.class "btn btn-ghost" ]
+            (Attr.class "btn normal-case btn-ghost"
+                :: attrs
+            )
 
 
 error : String -> Html msg
