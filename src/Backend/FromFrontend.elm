@@ -257,7 +257,7 @@ update sessionId clientId msg model =
                             ( trackers, trackerIds ) =
                                 model.trackers
                                     |> Data.Store.insertAll
-                                        [ { emoji = "💡", description = "Learned something" }
+                                        [ { emoji = "💡", description = "Learned something new" }
                                         , { emoji = "💪", description = "Felt strong" }
                                         , { emoji = "🥳", description = "Had a good time" }
                                         ]

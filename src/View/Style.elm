@@ -33,7 +33,7 @@ emojiInput args =
         []
     ]
         |> Html.label [ Attr.class "input-group" ]
-        |> Layout.el [ Attr.style "width" "130px" ]
+        |> Layout.el [ Attr.style "width" "150px" ]
 
 
 hero : Html msg -> Html msg

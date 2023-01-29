@@ -11,6 +11,7 @@ module Shared exposing
 import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.Navbar
+import Config
 import Html exposing (..)
 import Html.Attributes exposing (href, rel)
 import Layout
@@ -95,10 +96,10 @@ view :
 view req { page, toMsg } model =
     { title =
         if String.isEmpty page.title then
-            "Emoji Diary"
+            Config.title
 
         else
-            page.title ++ " | Emoji Diary"
+            page.title ++ " | " ++ Config.title
     , body =
         css
             ++ [ [ Components.Navbar.view

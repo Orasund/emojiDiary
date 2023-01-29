@@ -1,20 +1,17 @@
 module Pages.Home_ exposing (Model, Msg(..), page)
 
-import Api.Data exposing (Data)
 import Api.User exposing (User)
 import Bridge exposing (..)
+import Config
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
-import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes as Attr
 import Layout
 import Page
 import Request exposing (Request)
 import Shared
-import Task
-import Time exposing (Posix, Zone)
+import Time exposing (Posix)
 import View exposing (View)
 import View.Entry
 import View.Style
@@ -44,7 +41,7 @@ type alias Model =
 
 
 init : Shared.Model -> ( Model, Cmd Msg )
-init shared =
+init _ =
     let
         model : Model
         model =
@@ -77,12 +74,8 @@ type Msg
     | DeletedTracker (Id Tracker)
 
 
-type alias Tag =
-    String
-
-
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         GotEntries entries ->
             ( { model | entries = entries }
@@ -110,7 +103,7 @@ update shared msg model =
             )
 
         DraftCreated draft ->
-            ( { model | entryDraft =  draft }, Cmd.none )
+            ( { model | entryDraft = draft }, Cmd.none )
 
         GotTrackers trackers ->
             ( { model | trackers = trackers }, Cmd.none )
@@ -142,14 +135,25 @@ view shared model =
                     |> View.Entry.draft { onSubmit = DraftUpdated, zone = shared.zone }
                 , [ View.Style.itemHeading "Trackers"
                   , model.trackers
-                        |> View.Tracker.list { onDelete = DeletedTracker }
+                        |> View.Tracker.list
+                            { onDelete = DeletedTracker
+                            , onClick =
+                                \string ->
+                                    model.entryDraft
+                                        |> Maybe.map Tuple.second
+                                        |> Maybe.withDefault Data.Entry.newDraft
+                                        |> (\draft ->
+                                                { draft | content = draft.content ++ string }
+                                           )
+                                        |> DraftUpdated
+                            }
                   , View.Tracker.new { onInput = AddedTracker }
                   ]
                     |> Layout.column [ Layout.spacing 8 ]
                 ]
 
             Nothing ->
-                [ View.Style.sectionHeading "Emoji Diary"
+                [ View.Style.sectionHeading Config.title
                 , View.Style.itemHeading "Share your emotions"
                 ]
           )
