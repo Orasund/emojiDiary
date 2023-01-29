@@ -1,10 +1,11 @@
 module Bridge exposing (..)
 
-import Api.User exposing (User, UserFull)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
+import Data.User exposing (UserFull, UserInfo)
 import Lamdera
+import Time exposing (Zone)
 
 
 sendToBackend =
@@ -12,12 +13,13 @@ sendToBackend =
 
 
 type HomeToBackend
-    = DraftUpdated EntryContent
+    = DraftUpdated ( Zone, EntryContent )
     | GetEntriesOfSubscribed
     | GetDraft
     | GetTrackers
     | AddTracker String
     | RemoveTracker (Id Tracker)
+    | PublishDraft
 
 
 type ProfileToBackend
@@ -26,7 +28,7 @@ type ProfileToBackend
 
 
 type ToBackend
-    = SignedOut User
+    = SignedOut UserInfo
       -- Req/resp paired messages
     | ProfileGet_Profile__Username_ { username : String }
     | UserAuthentication_Login { params : { username : String, password : String } }

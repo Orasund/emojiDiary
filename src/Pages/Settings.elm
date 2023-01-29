@@ -1,9 +1,9 @@
 module Pages.Settings exposing (Model, Msg(..), page)
 
 import Api.Data exposing (Data)
-import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.ErrorList
+import Data.User exposing (UserInfo)
 import Effect exposing (Effect)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, placeholder, type_, value)
@@ -68,8 +68,8 @@ init shared =
 
 type Msg
     = Updated Field String
-    | SubmittedForm User
-    | GotUser (Data User)
+    | SubmittedForm UserInfo
+    | GotUser (Data UserInfo)
 
 
 type Field
@@ -125,7 +125,7 @@ subscriptions _ =
 -- VIEW
 
 
-view : User -> Model -> View Msg
+view : UserInfo -> Model -> View Msg
 view user model =
     { title = "Settings"
     , body =

@@ -1,11 +1,12 @@
 module Pages.Profile.UserId_ exposing (Model, Msg(..), page)
 
 import Api.Data exposing (Data(..))
-import Api.User exposing (Profile, User, UserFull, UserId)
 import Bridge exposing (..)
 import Components.NotFound
+import Data.Date exposing (Date)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
+import Data.User exposing (Profile, UserFull, UserId, UserInfo)
 import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
 import Html.Attributes as Attr
@@ -37,7 +38,7 @@ page shared req =
 
 type alias Model =
     { profile : Data Profile
-    , entries : List ( Posix, EntryContent )
+    , entries : List ( Date, EntryContent )
     , page : Int
     }
 
@@ -66,7 +67,7 @@ init shared { params } =
 
 type Msg
     = GotProfile (Data Profile)
-    | GotEntries (List ( Posix, EntryContent ))
+    | GotEntries (List ( Date, EntryContent ))
     | ToggleFollowing
 
 
@@ -177,8 +178,8 @@ viewProfile shared profile model =
     [ viewUserInfo
     , model.entries
         |> List.map
-            (\( posix, entry ) ->
-                View.Entry.toHtml shared.zone posix entry
+            (\( date, entry ) ->
+                View.Entry.toHtml date entry
             )
         |> Layout.column View.Style.container
         |> Layout.el [ Layout.centerContent ]

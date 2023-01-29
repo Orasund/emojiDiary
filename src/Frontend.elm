@@ -84,7 +84,13 @@ update msg model =
                     ( page, effect ) =
                         Pages.init (Route.fromUrl url) model.shared url model.key
                 in
-                ( { model | url = url, page = page }
+                ( { model
+                    | url = url
+                    , page = page
+                    , shared =
+                        model.shared
+                            |> (\m -> { m | error = Nothing })
+                  }
                 , Cmd.batch [ Effect.toCmd ( Shared, Page ) effect, scrollPageToTop ]
                 )
 

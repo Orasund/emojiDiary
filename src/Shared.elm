@@ -8,10 +8,10 @@ module Shared exposing
     , view
     )
 
-import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.Navbar
 import Config
+import Data.User exposing (UserInfo)
 import Html exposing (..)
 import Html.Attributes exposing (href, rel)
 import Layout
@@ -32,7 +32,7 @@ type alias Flags =
 
 
 type alias Model =
-    { user : Maybe User
+    { user : Maybe UserInfo
     , error : Maybe String
     , zone : Zone
     }
@@ -54,7 +54,7 @@ init _ _ =
 
 type Msg
     = ClickedSignOut
-    | SignedInUser User
+    | SignedInUser UserInfo
     | GotError String
     | GotZone Zone
 

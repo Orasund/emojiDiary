@@ -1,11 +1,13 @@
 module Backend.FromFrontend exposing (..)
 
 import Api.Data exposing (Data(..))
-import Api.User exposing (UserFull)
 import Bridge exposing (..)
+import Data.Date exposing (DateTriple)
+import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker
-import Dict
+import Data.User exposing (UserFull, UserId)
+import Dict exposing (Dict)
 import Dict.Extra as Dict
 import Gen.Msg
 import Lamdera exposing (..)
@@ -17,7 +19,7 @@ import Pages.Register
 import Pages.Settings
 import Shared
 import Task
-import Time
+import Time exposing (Posix, Zone)
 import Time.Extra exposing (Interval(..))
 import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), ToFrontend(..))
 
@@ -29,7 +31,7 @@ type alias Model =
 updateAtHome : (ToFrontend -> Cmd BackendMsg) -> Id UserFull -> UserFull -> HomeToBackend -> Model -> ( Model, Cmd BackendMsg )
 updateAtHome send_ userId user msg model =
     case msg of
-        DraftUpdated draft ->
+        DraftUpdated ( z, draft ) ->
             model.drafts
                 |> Dict.get (Data.Store.read userId)
                 |> (\maybe ->
@@ -42,16 +44,24 @@ updateAtHome send_ userId user msg model =
                                     model.drafts
                                         |> Dict.insert (Data.Store.read userId)
                                             (maybe
-                                                |> Maybe.map (Tuple.mapSecond (\_ -> draft))
-                                                |> Maybe.withDefault ( model.hour, draft )
+                                                |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, draft ))
+                                                |> Maybe.withDefault ( model.hour, z, draft )
                                             )
                           }
                         , case maybe of
                             Just _ ->
-                                Cmd.none
+                                if String.isEmpty draft.content then
+                                    Nothing
+                                        |> Pages.Home_.DraftCreated
+                                        |> Gen.Msg.Home_
+                                        |> PageMsg
+                                        |> send_
+
+                                else
+                                    Cmd.none
 
                             Nothing ->
-                                ( model.hour, draft )
+                                ( model.hour, z, draft )
                                     |> Just
                                     |> Pages.Home_.DraftCreated
                                     |> Gen.Msg.Home_
@@ -79,8 +89,8 @@ updateAtHome send_ userId user msg model =
                             |> List.reverse
                             |> List.head
                             |> Maybe.map
-                                (\( millis, entry ) ->
-                                    ( Api.User.toUser ( id, u ), Time.millisToPosix millis, entry )
+                                (\( date, entry ) ->
+                                    ( Data.User.toUser ( id, u ), Data.Date.toDate date, entry )
                                 )
                     )
                 |> (\entries ->
@@ -167,6 +177,16 @@ updateAtHome send_ userId user msg model =
                         )
                    )
 
+        PublishDraft ->
+            let
+                ( entries, drafts ) =
+                    ( model.entries, model.drafts )
+                        |> publishDraft (Data.Store.read userId)
+            in
+            ( { model | entries = entries, drafts = drafts }
+            , Gen.Msg.Home_ Pages.Home_.EntriesUpdated |> PageMsg |> send_
+            )
+
 
 update : SessionId -> ClientId -> ToBackend -> Model -> ( Model, Cmd BackendMsg )
 update sessionId clientId msg model =
@@ -215,7 +235,7 @@ update sessionId clientId msg model =
                         model.users
                             |> Data.Store.get profileId
                             |> Maybe.map (Tuple.pair profileId)
-                            |> Maybe.map (Api.User.toProfile subscribed)
+                            |> Maybe.map (Data.User.toProfile subscribed)
                             |> Maybe.map Success
                     )
                 |> Maybe.withDefault (Failure [ "user not found" ])
@@ -235,7 +255,7 @@ update sessionId clientId msg model =
                         |> Maybe.map
                             (\( id, u ) ->
                                 if u.password == params.password then
-                                    ( Success (Api.User.toUser ( id, u ))
+                                    ( Success (Data.User.toUser ( id, u ))
                                     , renewSession id sessionId clientId
                                     )
 
@@ -280,7 +300,7 @@ update sessionId clientId msg model =
                             , trackers = trackers
                           }
                         , renewSession userId sessionId clientId
-                        , Success (Api.User.toUser ( userId, user_ ))
+                        , Success (Data.User.toUser ( userId, user_ ))
                         )
             in
             ( model_, Cmd.batch [ cmd, send_ (PageMsg (Gen.Msg.Register (Pages.Register.GotUser res))) ] )
@@ -304,7 +324,7 @@ update sessionId clientId msg model =
                                 | users =
                                     model.users |> Data.Store.update userId (\_ -> user_)
                               }
-                            , Success (Api.User.toUser ( userId, user_ ))
+                            , Success (Data.User.toUser ( userId, user_ ))
                             )
 
                         Nothing ->
@@ -319,7 +339,7 @@ update sessionId clientId msg model =
                 |> Dict.toList
                 |> List.reverse
                 |> List.take 31
-                |> List.map (Tuple.mapFirst Time.millisToPosix)
+                |> List.map (Tuple.mapFirst Data.Date.toDate)
                 |> (\entries ->
                         ( model
                         , send_ (PageMsg (Gen.Msg.Profile__UserId_ (Pages.Profile.UserId_.GotEntries entries)))
@@ -373,6 +393,30 @@ getSessionUser sid model =
                     |> Data.Store.get id
                     |> Maybe.map (Tuple.pair id)
             )
+
+
+publishDraft :
+    UserId
+    -> ( Dict UserId (Dict DateTriple EntryContent), Dict UserId ( Posix, Zone, EntryContent ) )
+    -> ( Dict UserId (Dict DateTriple EntryContent), Dict UserId ( Posix, Zone, EntryContent ) )
+publishDraft userId ( e, d ) =
+    d
+        |> Dict.get userId
+        |> Maybe.map (\( posix, zone, entry ) -> ( Data.Date.fromPosix zone posix, entry ))
+        |> Maybe.map
+            (\( date, content ) ->
+                ( e
+                    |> Dict.update userId
+                        (\maybe ->
+                            maybe
+                                |> Maybe.map (Dict.insert date content)
+                                |> Maybe.withDefault (Dict.singleton date content)
+                                |> Just
+                        )
+                , d |> Dict.remove userId
+                )
+            )
+        |> Maybe.withDefault ( e, d )
 
 
 renewSession userId sid cid =

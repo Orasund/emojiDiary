@@ -1,9 +1,9 @@
 module Pages.Login exposing (Model, Msg(..), page)
 
 import Api.Data exposing (Data)
-import Api.User exposing (User)
 import Bridge exposing (..)
 import Components.ErrorList
+import Data.User exposing (UserInfo)
 import Effect exposing (Effect)
 import Gen.Route as Route
 import Html
@@ -31,7 +31,7 @@ page shared req =
 
 
 type alias Model =
-    { user : Data User
+    { user : Data UserInfo
     , username : String
     , password : String
     }
@@ -60,7 +60,7 @@ init shared =
 type Msg
     = Updated Field String
     | AttemptedSignIn
-    | GotUser (Data User)
+    | GotUser (Data UserInfo)
 
 
 type Field

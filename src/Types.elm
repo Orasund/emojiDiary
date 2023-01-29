@@ -1,17 +1,18 @@
 module Types exposing (..)
 
-import Api.User exposing (User, UserFull, UserId)
 import Bridge
 import Browser
 import Browser.Navigation exposing (Key)
+import Data.Date exposing (DateTriple)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id, Store)
 import Data.Tracker exposing (Tracker)
+import Data.User exposing (UserFull, UserId, UserInfo)
 import Dict exposing (Dict)
 import Gen.Pages as Pages
 import Lamdera exposing (ClientId, SessionId)
 import Shared
-import Time
+import Time exposing (Posix, Zone)
 import Url exposing (Url)
 
 
@@ -28,15 +29,15 @@ type alias BackendModel =
     , users : Store UserFull
     , trackers : Store Tracker
     , usernames : Dict String (Id UserFull)
-    , drafts : Dict UserId ( Time.Posix, EntryContent )
-    , entries : Dict UserId (Dict Int EntryContent)
+    , drafts : Dict UserId ( Posix, Zone, EntryContent )
+    , entries : Dict UserId (Dict DateTriple EntryContent)
     , following : Dict UserId (List (Id UserFull))
-    , hour : Time.Posix
+    , hour : Posix
     }
 
 
 type alias Session =
-    { userId : Id UserFull, expires : Time.Posix }
+    { userId : Id UserFull, expires : Posix }
 
 
 type FrontendMsg
@@ -59,7 +60,7 @@ type BackendMsg
 
 
 type ToFrontend
-    = ActiveSession User
+    = ActiveSession UserInfo
     | PageMsg Pages.Msg
     | SharedMsg Shared.Msg
     | NoOpToFrontend

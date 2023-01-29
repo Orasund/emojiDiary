@@ -1,18 +1,22 @@
 module Pages.Home_ exposing (Model, Msg(..), page)
 
-import Api.User exposing (User)
 import Bridge exposing (..)
 import Config
+import Data.Date exposing (Date)
 import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
+import Data.User exposing (UserInfo)
 import Html exposing (..)
 import Layout
 import Page
 import Request exposing (Request)
 import Shared
-import Time exposing (Posix)
+import Task
+import Time exposing (Posix, Zone)
+import Time.Extra exposing (Interval(..))
 import View exposing (View)
+import View.Date
 import View.Entry
 import View.Style
 import View.Tracker
@@ -34,9 +38,10 @@ page shared _ =
 
 type alias Model =
     { page : Int
-    , entryDraft : Maybe ( Posix, EntryContent )
+    , entryDraft : Maybe ( Posix, Zone, EntryContent )
     , trackers : List ( Id Tracker, Tracker )
-    , entries : List ( User, Posix, EntryContent )
+    , entries : List ( UserInfo, Date, EntryContent )
+    , time : Maybe Posix
     }
 
 
@@ -49,12 +54,14 @@ init _ =
             , entryDraft = Nothing
             , trackers = []
             , entries = []
+            , time = Nothing
             }
     in
     ( model
     , [ AtHome GetTrackers |> sendToBackend
       , AtHome GetDraft |> sendToBackend
       , AtHome GetEntriesOfSubscribed |> sendToBackend
+      , Time.now |> Task.perform GotTime
       ]
         |> Cmd.batch
     )
@@ -66,16 +73,18 @@ init _ =
 
 type Msg
     = EntriesUpdated
-    | GotEntries (List ( User, Posix, EntryContent ))
+    | GotEntries (List ( UserInfo, Date, EntryContent ))
     | DraftUpdated EntryContent
-    | DraftCreated (Maybe ( Posix, EntryContent ))
+    | DraftCreated (Maybe ( Posix, Zone, EntryContent ))
+    | PublishDraft
     | GotTrackers (List ( Id Tracker, Tracker ))
     | AddedTracker String
     | DeletedTracker (Id Tracker)
+    | GotTime Posix
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
-update _ msg model =
+update shared msg model =
     case msg of
         GotEntries entries ->
             ( { model | entries = entries }
@@ -96,9 +105,9 @@ update _ msg model =
             in
             ( { model
                 | entryDraft =
-                    model.entryDraft |> Maybe.map (Tuple.mapSecond (\_ -> entryDraft))
+                    model.entryDraft |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, entryDraft ))
               }
-            , AtHome (Bridge.DraftUpdated entryDraft)
+            , AtHome (Bridge.DraftUpdated ( shared.zone, entryDraft ))
                 |> sendToBackend
             )
 
@@ -109,10 +118,23 @@ update _ msg model =
             ( { model | trackers = trackers }, Cmd.none )
 
         AddedTracker emoji ->
-            ( model, AtHome (Bridge.AddTracker emoji) |> sendToBackend )
+            ( model
+            , AtHome (Bridge.AddTracker emoji)
+                |> sendToBackend
+            )
 
         DeletedTracker id ->
-            ( model, Bridge.RemoveTracker id |> AtHome |> sendToBackend )
+            ( model
+            , Bridge.RemoveTracker id
+                |> AtHome
+                |> sendToBackend
+            )
+
+        PublishDraft ->
+            ( model, Bridge.PublishDraft |> AtHome |> sendToBackend )
+
+        GotTime time ->
+            ( { model | time = Just time }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -133,6 +155,53 @@ view shared model =
                 [ View.Style.sectionHeading "How was your day?"
                 , model.entryDraft
                     |> View.Entry.draft { onSubmit = DraftUpdated, zone = shared.zone }
+                , model.entryDraft
+                    |> Maybe.map
+                        (\( posix, zone, _ ) ->
+                            let
+                                p =
+                                    Time.Extra.add Hour Config.postingCooldownInHours zone posix
+
+                                minTime =
+                                    Time.Extra.add Hour Config.postingMinCooldownInHours zone posix
+                            in
+                            [ "Draft will be published"
+                                ++ (if
+                                        model.time
+                                            |> Maybe.map
+                                                (\time ->
+                                                    Data.Date.fromPosix zone p
+                                                        == Data.Date.fromPosix shared.zone time
+                                                )
+                                            |> Maybe.withDefault False
+                                    then
+                                        " today"
+
+                                    else
+                                        " on "
+                                            ++ View.Date.weekdayToString (Time.toWeekday shared.zone p)
+                                   )
+                                ++ " at "
+                                ++ View.Date.asTime shared.zone p
+                                |> Html.text
+                                |> Layout.el [ Layout.alignAtCenter ]
+                            , case model.time of
+                                Just time ->
+                                    if Time.posixToMillis minTime < Time.posixToMillis time then
+                                        View.Style.button
+                                            { onPress = Just PublishDraft
+                                            , label = "Publish now"
+                                            }
+
+                                    else
+                                        Layout.none
+
+                                Nothing ->
+                                    Layout.none
+                            ]
+                                |> Layout.row [ Layout.spaceBetween ]
+                        )
+                    |> Maybe.withDefault Layout.none
                 , [ View.Style.itemHeading "Trackers"
                   , model.trackers
                         |> View.Tracker.list
@@ -140,7 +209,7 @@ view shared model =
                             , onClick =
                                 \string ->
                                     model.entryDraft
-                                        |> Maybe.map Tuple.second
+                                        |> Maybe.map (\( _, _, d ) -> d)
                                         |> Maybe.withDefault Data.Entry.newDraft
                                         |> (\draft ->
                                                 { draft | content = draft.content ++ string }

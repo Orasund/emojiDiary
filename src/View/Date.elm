@@ -1,5 +1,6 @@
-module View.Posix exposing (..)
+module View.Date exposing (..)
 
+import Data.Date exposing (Date)
 import Time exposing (Month(..), Posix, Weekday(..), Zone)
 
 
@@ -10,9 +11,9 @@ asTime zone posix =
         ++ String.fromInt (Time.toMinute zone posix)
 
 
-asWeekday : Zone -> Posix -> String
-asWeekday zone posix =
-    case Time.toWeekday zone posix of
+weekdayToString : Weekday -> String
+weekdayToString weekday =
+    case weekday of
         Mon ->
             "Monday"
 
@@ -35,9 +36,9 @@ asWeekday zone posix =
             "Sunday"
 
 
-asMonth : Zone -> Posix -> String
-asMonth zone posix =
-    case Time.toMonth zone posix of
+asMonth : Date -> String
+asMonth date =
+    case date.month of
         Jan ->
             "January"
 
@@ -75,8 +76,8 @@ asMonth zone posix =
             "december"
 
 
-asDate : Zone -> Posix -> String
-asDate zone posix =
-    (posix |> Time.toDay zone |> String.fromInt)
+toString : Date -> String
+toString date =
+    (date.day |> String.fromInt)
         ++ ". "
-        ++ asMonth zone posix
+        ++ asMonth date

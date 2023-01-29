@@ -1,6 +1,6 @@
 module Components.Navbar exposing (view)
 
-import Api.User exposing (User)
+import Data.User exposing (UserInfo)
 import Gen.Route as Route exposing (Route)
 import Html exposing (..)
 import Html.Attributes exposing (class, classList, href)
@@ -10,7 +10,7 @@ import View.Style
 
 
 view :
-    { user : Maybe User
+    { user : Maybe UserInfo
     , currentRoute : Route
     , onSignOut : msg
     }

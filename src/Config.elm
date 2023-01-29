@@ -7,7 +7,13 @@ title =
     "Emoji Diary"
 
 
+postingMinCooldownInHours : Int
+postingMinCooldownInHours =
+    --24
+    1
+
+
 postingCooldownInHours : Int
 postingCooldownInHours =
-    --24
+    --48
     2

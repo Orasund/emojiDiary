@@ -1,4 +1,4 @@
-module Api.User exposing (..)
+module Data.User exposing (..)
 
 {-|
 
@@ -10,7 +10,7 @@ import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
 
 
-type alias User =
+type alias UserInfo =
     { id : Id UserFull
     , username : String
     , image : String
@@ -40,7 +40,7 @@ new args =
     }
 
 
-toUser : ( Id UserFull, UserFull ) -> User
+toUser : ( Id UserFull, UserFull ) -> UserInfo
 toUser ( id, u ) =
     { id = id
     , username = u.username

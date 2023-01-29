@@ -1,11 +1,11 @@
 module Backend exposing (..)
 
 import Api.Data exposing (Data(..))
-import Api.User
 import Backend.FromFrontend
 import Bridge exposing (..)
 import Config
 import Data.Store
+import Data.User
 import Dict
 import Dict.Extra as Dict
 import Gen.Msg
@@ -41,7 +41,7 @@ init =
       , hour = Time.millisToPosix 0
       , following = Dict.empty
       }
-    , Cmd.none
+    , Task.perform HourPassed Time.now
     )
 
 
@@ -63,7 +63,7 @@ update msg model =
         CheckSession sid cid ->
             model
                 |> Backend.FromFrontend.getSessionUser sid
-                |> Maybe.map (\user -> ( model, sendToFrontend cid (ActiveSession (Api.User.toUser user)) ))
+                |> Maybe.map (\user -> ( model, sendToFrontend cid (ActiveSession (Data.User.toUser user)) ))
                 |> Maybe.withDefault ( model, Cmd.none )
 
         RenewSession uid sid cid now ->
@@ -80,27 +80,18 @@ update msg model =
                 ( entries, drafts ) =
                     model.drafts
                         |> Dict.foldl
-                            (\userId ( posix, content ) ( e, d ) ->
+                            (\userId ( posix, zone, _ ) ->
                                 if
                                     (posix
-                                        |> Time.Extra.add Hour Config.postingCooldownInHours Time.utc
+                                        |> Time.Extra.add Hour Config.postingCooldownInHours zone
                                         |> Time.posixToMillis
                                     )
                                         < Time.posixToMillis currentTime
                                 then
-                                    ( e
-                                        |> Dict.update userId
-                                            (\maybe ->
-                                                maybe
-                                                    |> Maybe.map (Dict.insert (Time.posixToMillis posix) content)
-                                                    |> Maybe.withDefault (Dict.singleton (Time.posixToMillis posix) content)
-                                                    |> Just
-                                            )
-                                    , d |> Dict.remove userId
-                                    )
+                                    Backend.FromFrontend.publishDraft userId
 
                                 else
-                                    ( e, d )
+                                    identity
                             )
                             ( model.entries, model.drafts )
             in
