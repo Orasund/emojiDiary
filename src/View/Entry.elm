@@ -20,18 +20,29 @@ draft args maybe =
                 |> Maybe.map (\( _, _, d ) -> d)
                 |> Maybe.withDefault Data.Entry.newDraft
     in
-    [ Layout.row [ Layout.noWrap, Layout.spacing 8 ]
-        [ View.Style.emojiInput
+    [ [ [ View.Style.emojiInput
             { name = "Mood"
             , content = entryDraft.content
             , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
             }
-        , View.Style.input [ Html.Events.onBlur args.onBlur ]
+        , maybe
+            |> Maybe.map
+                (\( p, z, _ ) ->
+                    "For "
+                        ++ View.Date.toString (Data.Date.fromPosix z p |> Data.Date.toDate)
+                        |> Html.text
+                        |> Layout.el []
+                )
+            |> Maybe.withDefault Layout.none
+        ]
+            |> Layout.row [ Layout.spaceBetween ]
+      , View.Style.input [ Html.Events.onBlur args.onBlur ]
             { name = "Description"
             , content = entryDraft.description
             , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
             }
-        ]
+      ]
+        |> Layout.column [ Layout.noWrap, Layout.spacing 8 ]
     ]
         |> Layout.column []
 

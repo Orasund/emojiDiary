@@ -44,6 +44,7 @@ type alias Model =
     , entries : List ( UserInfo, Date, EntryContent )
     , focusedTracker : Maybe Int
     , time : Maybe Posix
+    , postedYesterday : Bool
     }
 
 
@@ -58,11 +59,12 @@ init shared =
             , entries = []
             , focusedTracker = Nothing
             , time = Nothing
+            , postedYesterday = True
             }
     in
     ( model
     , [ AtHome GetTrackers |> sendToBackend
-      , AtHome GetDraft |> sendToBackend
+      , GetDraft shared.zone |> AtHome |> sendToBackend
       , AtHome GetEntriesOfSubscribed |> sendToBackend
       , Time.now |> Task.perform GotTime
       ]
@@ -78,9 +80,10 @@ type Msg
     = UpdatedEntries
     | GotEntries (List ( UserInfo, Date, EntryContent ))
     | UpdatedDraft EntryContent
-    | CreatedDraft (Maybe ( Posix, Zone, EntryContent ))
+    | CreatedDraft { draft : Maybe ( Posix, Zone, EntryContent ), postedYesterday : Bool }
     | FinishedUpdatingDraft
     | PublishDraft
+    | SetDraftForYesterday
     | GotTrackers (List ( Id Tracker, Tracker ))
     | AddedTracker String
     | DeletedTracker (Id Tracker)
@@ -99,7 +102,7 @@ update shared msg model =
 
         UpdatedEntries ->
             ( model
-            , [ AtHome Bridge.GetDraft |> sendToBackend
+            , [ Bridge.GetDraft shared.zone |> AtHome |> sendToBackend
               ]
                 |> Cmd.batch
             )
@@ -135,14 +138,18 @@ update shared msg model =
         FinishedUpdatingDraft ->
             ( model
             , model.entryDraft
-                |> Maybe.map (\( _, zone, draft ) -> ( zone, draft ))
                 |> Bridge.DraftUpdated
                 |> AtHome
                 |> sendToBackend
             )
 
-        CreatedDraft draft ->
-            ( { model | entryDraft = draft }, Cmd.none )
+        CreatedDraft { draft, postedYesterday } ->
+            ( { model
+                | entryDraft = draft
+                , postedYesterday = postedYesterday
+              }
+            , Cmd.none
+            )
 
         GotTrackers trackers ->
             ( { model | trackers = trackers |> Array.fromList }, Cmd.none )
@@ -186,6 +193,29 @@ update shared msg model =
         PublishDraft ->
             ( model, Bridge.PublishDraft |> AtHome |> sendToBackend )
 
+        SetDraftForYesterday ->
+            let
+                entryDraft =
+                    Maybe.map2
+                        (\( _, z, e ) time ->
+                            ( time |> Time.Extra.add Day -1 shared.zone
+                            , z
+                            , e
+                            )
+                        )
+                        model.entryDraft
+                        model.time
+            in
+            ( { model
+                | entryDraft = entryDraft
+                , postedYesterday = True
+              }
+            , entryDraft
+                |> Bridge.DraftUpdated
+                |> AtHome
+                |> sendToBackend
+            )
+
         GotTime time ->
             ( { model | time = Just time }, Cmd.none )
 
@@ -205,7 +235,31 @@ view shared model =
     , body =
         [ (case shared.user of
             Just _ ->
-                [ View.Style.sectionHeading "How was your day?"
+                [ [ View.Style.sectionHeading "How was your day?"
+                  , case model.entryDraft of
+                        Just ( posix, _, _ ) ->
+                            if
+                                model.time
+                                    |> Maybe.map
+                                        (\time ->
+                                            Data.Date.fromPosix shared.zone posix
+                                                == Data.Date.fromPosix shared.zone time
+                                                && model.postedYesterday
+                                        )
+                                    |> Maybe.withDefault False
+                            then
+                                Layout.none
+
+                            else
+                                View.Style.button
+                                    { onPress = Just SetDraftForYesterday
+                                    , label = "For Yesterday"
+                                    }
+
+                        Nothing ->
+                            Layout.none
+                  ]
+                    |> Layout.row [ Layout.spaceBetween ]
                 , model.entryDraft
                     |> View.Entry.draft
                         { onSubmit = UpdatedDraft

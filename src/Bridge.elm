@@ -5,7 +5,7 @@ import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
 import Data.User exposing (UserFull, UserInfo)
 import Lamdera
-import Time exposing (Zone)
+import Time exposing (Posix, Zone)
 
 
 sendToBackend =
@@ -13,9 +13,9 @@ sendToBackend =
 
 
 type HomeToBackend
-    = DraftUpdated (Maybe ( Zone, EntryContent ))
+    = DraftUpdated (Maybe ( Posix, Zone, EntryContent ))
     | GetEntriesOfSubscribed
-    | GetDraft
+    | GetDraft Zone
     | GetTrackers
     | AddTracker String
     | RemoveTracker (Id Tracker)

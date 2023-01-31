@@ -18,7 +18,6 @@ import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
 import Set
-import Shared
 import Task
 import Time exposing (Posix, Zone)
 import Time.Extra exposing (Interval(..))
@@ -27,6 +26,20 @@ import Types exposing (BackendModel, BackendMsg(..), FrontendMsg(..), ToFrontend
 
 type alias Model =
     BackendModel
+
+
+checkYesterdaysPost : Id UserFull -> Zone -> Model -> Bool
+checkYesterdaysPost userId zone model =
+    model.entries
+        |> Dict.get (Data.Store.read userId)
+        |> Maybe.map
+            (Dict.member
+                (model.hour
+                    |> Time.Extra.add Day -1 zone
+                    |> Data.Date.fromPosix zone
+                )
+            )
+        |> Maybe.withDefault False
 
 
 updateAtHome : (ToFrontend -> Cmd BackendMsg) -> Id UserFull -> UserFull -> HomeToBackend -> Model -> ( Model, Cmd BackendMsg )
@@ -39,7 +52,7 @@ updateAtHome send_ userId user msg model =
                         ( { model
                             | drafts =
                                 case m of
-                                    Just ( z, draft ) ->
+                                    Just ( p, z, draft ) ->
                                         if String.isEmpty draft.content then
                                             model.drafts |> Dict.remove (Data.Store.read userId)
 
@@ -48,18 +61,20 @@ updateAtHome send_ userId user msg model =
                                                 |> Dict.insert (Data.Store.read userId)
                                                     (maybe
                                                         |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, draft ))
-                                                        |> Maybe.withDefault ( model.hour, z, draft )
+                                                        |> Maybe.withDefault ( p, z, draft )
                                                     )
 
                                     Nothing ->
                                         model.drafts |> Dict.remove (Data.Store.read userId)
                           }
                         , case m of
-                            Just ( z, draft ) ->
+                            Just ( p, z, draft ) ->
                                 case maybe of
                                     Just _ ->
                                         if String.isEmpty draft.content then
-                                            Nothing
+                                            { draft = Nothing
+                                            , postedYesterday = checkYesterdaysPost userId z model
+                                            }
                                                 |> Pages.Home_.CreatedDraft
                                                 |> Gen.Msg.Home_
                                                 |> PageMsg
@@ -69,8 +84,11 @@ updateAtHome send_ userId user msg model =
                                             Cmd.none
 
                                     Nothing ->
-                                        ( model.hour, z, draft )
-                                            |> Just
+                                        { draft =
+                                            ( p, z, draft )
+                                                |> Just
+                                        , postedYesterday = checkYesterdaysPost userId z model
+                                        }
                                             |> Pages.Home_.CreatedDraft
                                             |> Gen.Msg.Home_
                                             |> PageMsg
@@ -115,11 +133,19 @@ updateAtHome send_ userId user msg model =
                         )
                    )
 
-        GetDraft ->
+        GetDraft zone ->
             model.drafts
                 |> Dict.get (Data.Store.read userId)
                 |> (\draft ->
-                        ( model, send_ (PageMsg (Gen.Msg.Home_ (Pages.Home_.CreatedDraft draft))) )
+                        ( model
+                        , Pages.Home_.CreatedDraft
+                            { draft = draft
+                            , postedYesterday = checkYesterdaysPost userId zone model
+                            }
+                            |> Gen.Msg.Home_
+                            |> PageMsg
+                            |> send_
+                        )
                    )
 
         GetTrackers ->
