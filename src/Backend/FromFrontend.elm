@@ -61,14 +61,18 @@ updateAtHome send_ userId user msg model =
                                                 |> Dict.insert (Data.Store.read userId)
                                                     (maybe
                                                         |> Maybe.map (\( posix, zone, _ ) -> ( posix, zone, draft ))
-                                                        |> Maybe.withDefault ( p, z, draft )
+                                                        |> Maybe.withDefault
+                                                            ( p |> Maybe.withDefault model.hour
+                                                            , z
+                                                            , draft
+                                                            )
                                                     )
 
                                     Nothing ->
                                         model.drafts |> Dict.remove (Data.Store.read userId)
                           }
                         , case m of
-                            Just ( p, z, draft ) ->
+                            Just ( maybePosix, z, draft ) ->
                                 case maybe of
                                     Just _ ->
                                         if String.isEmpty draft.content then
@@ -85,7 +89,10 @@ updateAtHome send_ userId user msg model =
 
                                     Nothing ->
                                         { draft =
-                                            ( p, z, draft )
+                                            ( maybePosix |> Maybe.withDefault model.hour |> Just
+                                            , z
+                                            , draft
+                                            )
                                                 |> Just
                                         , postedYesterday = checkYesterdaysPost userId z model
                                         }
@@ -136,12 +143,13 @@ updateAtHome send_ userId user msg model =
         GetDraft zone ->
             model.drafts
                 |> Dict.get (Data.Store.read userId)
+                |> Maybe.map (\( p, z, e ) -> ( Just p, z, e ))
                 |> (\draft ->
                         ( model
-                        , Pages.Home_.CreatedDraft
-                            { draft = draft
-                            , postedYesterday = checkYesterdaysPost userId zone model
-                            }
+                        , { draft = draft
+                          , postedYesterday = checkYesterdaysPost userId zone model
+                          }
+                            |> Pages.Home_.CreatedDraft
                             |> Gen.Msg.Home_
                             |> PageMsg
                             |> send_

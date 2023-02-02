@@ -12,7 +12,7 @@ import View.Date
 import View.Style
 
 
-draft : { onSubmit : EntryContent -> msg, onBlur : msg, zone : Zone } -> Maybe ( Posix, Zone, EntryContent ) -> Html msg
+draft : { onSubmit : EntryContent -> msg, onBlur : msg, zone : Zone } -> Maybe ( Maybe Posix, Zone, EntryContent ) -> Html msg
 draft args maybe =
     let
         entryDraft =
@@ -26,12 +26,19 @@ draft args maybe =
             , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
             }
         , maybe
-            |> Maybe.map
+            |> Maybe.andThen
                 (\( p, z, _ ) ->
-                    "For "
-                        ++ View.Date.toString (Data.Date.fromPosix z p |> Data.Date.toDate)
-                        |> Html.text
-                        |> Layout.el []
+                    p
+                        |> Maybe.map (Data.Date.fromPosix z)
+                        |> Maybe.map Data.Date.toDate
+                        |> Maybe.map View.Date.toString
+                        |> Maybe.map
+                            (\date ->
+                                "For "
+                                    ++ date
+                                    |> Html.text
+                                    |> Layout.el []
+                            )
                 )
             |> Maybe.withDefault Layout.none
         ]

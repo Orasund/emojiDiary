@@ -5,17 +5,14 @@ import Bridge exposing (..)
 import Components.NotFound
 import Data.Date exposing (Date)
 import Data.Entry exposing (EntryContent)
-import Data.Store exposing (Id)
-import Data.User exposing (Profile, UserFull, UserId, UserInfo)
+import Data.User exposing (Profile)
 import Gen.Params.Profile.UserId_ exposing (Params)
 import Html exposing (..)
 import Html.Attributes as Attr
 import Layout
 import Page
 import Request
-import Set
 import Shared
-import Time exposing (Posix, Zone)
 import Utils.Maybe
 import View exposing (View)
 import View.Entry
@@ -44,7 +41,7 @@ type alias Model =
 
 
 init : Shared.Model -> Request.With Params -> ( Model, Cmd Msg )
-init shared { params } =
+init _ { params } =
     let
         username =
             --todo rename params.userId to params.username
@@ -72,7 +69,7 @@ type Msg
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
-update shared msg model =
+update _ msg model =
     case msg of
         GotProfile profile ->
             ( { model | profile = profile }
@@ -170,9 +167,8 @@ viewProfile shared profile model =
                 |> Layout.el [ Layout.alignAtEnd ]
             ]
                 |> Layout.row
-                    ([ Layout.spaceBetween
-                     ]
-                        ++ View.Style.container
+                    (Layout.spaceBetween
+                        :: View.Style.container
                     )
                 |> View.Style.hero
     in

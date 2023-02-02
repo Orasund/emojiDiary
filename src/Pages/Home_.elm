@@ -39,7 +39,7 @@ page shared _ =
 
 type alias Model =
     { page : Int
-    , entryDraft : Maybe ( Posix, Zone, EntryContent )
+    , entryDraft : Maybe ( Maybe Posix, Zone, EntryContent )
     , trackers : Array ( Id Tracker, Tracker )
     , entries : List ( UserInfo, Date, EntryContent )
     , focusedTracker : Maybe Int
@@ -79,8 +79,8 @@ init shared =
 type Msg
     = UpdatedEntries
     | GotEntries (List ( UserInfo, Date, EntryContent ))
-    | UpdatedDraft EntryContent
-    | CreatedDraft { draft : Maybe ( Posix, Zone, EntryContent ), postedYesterday : Bool }
+    | UpdatedDraft { draft : EntryContent, toBackend : Bool }
+    | CreatedDraft { draft : Maybe ( Maybe Posix, Zone, EntryContent ), postedYesterday : Bool }
     | FinishedUpdatingDraft
     | PublishDraft
     | SetDraftForYesterday
@@ -107,16 +107,16 @@ update shared msg model =
                 |> Cmd.batch
             )
 
-        UpdatedDraft d ->
+        UpdatedDraft { draft, toBackend } ->
             let
                 entryDraft =
-                    { d
-                        | content = String.left 6 d.content
-                        , description = String.left 50 d.description
+                    { draft
+                        | content = String.left 6 draft.content
+                        , description = String.left 50 draft.description
                     }
 
                 shouldDelete =
-                    String.isEmpty d.content
+                    String.isEmpty draft.content
             in
             ( { model
                 | entryDraft =
@@ -129,10 +129,16 @@ update shared msg model =
                                 Just ( posix, zone, entryDraft )
 
                             Nothing ->
-                                model.time
-                                    |> Maybe.map (\time -> ( time, shared.zone, entryDraft ))
+                                Just ( Nothing, shared.zone, entryDraft )
               }
-            , Cmd.none
+            , if toBackend then
+                model.entryDraft
+                    |> Bridge.DraftUpdated
+                    |> AtHome
+                    |> sendToBackend
+
+              else
+                Cmd.none
             )
 
         FinishedUpdatingDraft ->
@@ -198,7 +204,7 @@ update shared msg model =
                 entryDraft =
                     Maybe.map2
                         (\( _, z, e ) time ->
-                            ( time |> Time.Extra.add Day -1 shared.zone
+                            ( time |> Time.Extra.add Day -1 shared.zone |> Just
                             , z
                             , e
                             )
@@ -239,14 +245,19 @@ view shared model =
                   , case model.entryDraft of
                         Just ( posix, _, _ ) ->
                             if
-                                model.time
+                                posix
                                     |> Maybe.map
-                                        (\time ->
-                                            Data.Date.fromPosix shared.zone posix
-                                                == Data.Date.fromPosix shared.zone time
-                                                && model.postedYesterday
+                                        (\p ->
+                                            Maybe.map
+                                                (\time ->
+                                                    Data.Date.fromPosix shared.zone p
+                                                        == Data.Date.fromPosix shared.zone time
+                                                        && model.postedYesterday
+                                                )
+                                                model.time
+                                                |> Maybe.withDefault False
                                         )
-                                    |> Maybe.withDefault False
+                                    |> Maybe.withDefault True
                             then
                                 Layout.none
 
@@ -262,13 +273,14 @@ view shared model =
                     |> Layout.row [ Layout.spaceBetween ]
                 , model.entryDraft
                     |> View.Entry.draft
-                        { onSubmit = UpdatedDraft
+                        { onSubmit = \d -> UpdatedDraft { draft = d, toBackend = False }
                         , onBlur = FinishedUpdatingDraft
                         , zone = shared.zone
                         }
                 , model.entryDraft
+                    |> Maybe.andThen (\( p, z, _ ) -> p |> Maybe.map (\posix -> ( posix, z )))
                     |> Maybe.map
-                        (\( posix, zone, _ ) ->
+                        (\( posix, zone ) ->
                             let
                                 p =
                                     Time.Extra.add Hour Config.postingCooldownInHours zone posix
@@ -324,7 +336,12 @@ view shared model =
                                         |> Maybe.map (\( _, _, d ) -> d)
                                         |> Maybe.withDefault Data.Entry.newDraft
                                         |> (\draft ->
-                                                { draft | content = draft.content ++ string }
+                                                { draft =
+                                                    { draft
+                                                        | content = draft.content ++ string
+                                                    }
+                                                , toBackend = True
+                                                }
                                            )
                                         |> UpdatedDraft
                             , onBlur = FinishedEditingTracker
