@@ -4,6 +4,7 @@ import Data.Date exposing (Date)
 import Data.Entry exposing (EntryContent)
 import Data.User exposing (UserInfo)
 import Html exposing (Html)
+import Html.Attributes as Attr
 import Html.Events
 import Layout
 import Time exposing (Posix, Zone)
@@ -48,31 +49,46 @@ draft args maybe =
             , content = entryDraft.description
             , onInput = \string -> { entryDraft | description = string } |> args.onSubmit
             }
+      , View.Style.input [ Html.Events.onBlur args.onBlur ]
+            { name = "Link"
+            , content = entryDraft.link |> Maybe.withDefault ""
+            , onInput =
+                \string ->
+                    { entryDraft
+                        | link =
+                            if string == "" then
+                                Nothing
+
+                            else
+                                Just string
+                    }
+                        |> args.onSubmit
+            }
       ]
         |> Layout.column [ Layout.noWrap, Layout.spacing 8 ]
     ]
         |> Layout.column []
 
 
-withUser : ( UserInfo, Date, EntryContent ) -> Html msg
-withUser ( user, date, entry ) =
+toHtml : Maybe UserInfo -> Date -> EntryContent -> Html msg
+toHtml user date entry =
     Layout.row [ Layout.spacing 16 ]
         [ entry.content |> Html.text |> Layout.el []
         , entry.description |> Html.text |> Layout.el [ Layout.fill ]
-        , user.username |> Html.text |> Layout.el []
-        , View.Date.weekdayToString date.weekday
-            ++ ", "
-            ++ View.Date.toString date
-            |> Html.text
-            |> Layout.el []
-        ]
-
-
-toHtml : Date -> EntryContent -> Html msg
-toHtml date entry =
-    Layout.row [ Layout.spacing 16 ]
-        [ entry.content |> Html.text |> Layout.el []
-        , entry.description |> Html.text |> Layout.el [ Layout.fill ]
+        , entry.link
+            |> Maybe.map
+                (\link ->
+                    [ Layout.el [ Attr.class "bi bi-link-45deg", Layout.alignCenter ] Layout.none
+                    , "Link"
+                        |> Html.text
+                        |> View.Style.linkToNewTab link
+                    ]
+                        |> Layout.row []
+                )
+            |> Maybe.withDefault Layout.none
+        , user
+            |> Maybe.map (\{ username } -> username |> Html.text |> Layout.el [])
+            |> Maybe.withDefault Layout.none
         , View.Date.weekdayToString date.weekday
             ++ ", "
             ++ View.Date.toString date

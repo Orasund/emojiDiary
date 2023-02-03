@@ -125,7 +125,7 @@ view model =
     , body =
         [ View.Style.sectionHeading "Sign in"
         , [ Html.text "Don't have an account?"
-                |> Layout.linkTo (Route.toHref Route.Register) []
+                |> View.Style.linkTo (Route.toHref Route.Register)
           , case model.user of
                 Api.Data.Failure reasons ->
                     Components.ErrorList.view reasons

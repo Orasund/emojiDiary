@@ -176,7 +176,7 @@ viewProfile shared profile model =
     , [ model.entries
             |> List.map
                 (\( date, entry ) ->
-                    View.Entry.toHtml date entry
+                    View.Entry.toHtml Nothing date entry
                 )
             |> Layout.column [ Layout.spacing 4 ]
       ]

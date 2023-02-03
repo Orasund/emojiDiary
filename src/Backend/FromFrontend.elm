@@ -345,12 +345,8 @@ update sessionId clientId msg model =
 
                             user_ : UserFull
                             user_ =
-                                { username = params.username
-                                , bio = Nothing
-                                , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
-                                , password = params.password
-                                , trackers = trackerIds
-                                }
+                                Data.User.new { username = params.username, password = params.password }
+                                    |> (\u -> { u | trackers = trackerIds })
 
                             ( store, userId ) =
                                 model.users |> Data.Store.insert user_

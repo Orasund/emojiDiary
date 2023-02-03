@@ -9,6 +9,7 @@
     "dependencies": {
         "direct": {
             "Orasund/elm-layout": "1.5.0",
+            "billstclair/elm-sha256": "1.0.9",
             "elm/browser": "1.0.2",
             "elm/core": "1.0.5",
             "elm/html": "1.0.0",
@@ -30,6 +31,8 @@
             "elm/bytes": "1.0.8",
             "elm/file": "1.0.5",
             "elm/parser": "1.1.0",
+            "elm/random": "1.0.0",
+            "elm/regex": "1.0.0",
             "elm/virtual-dom": "1.0.2",
             "justinmimbs/date": "3.2.1"
         }
@@ -40,8 +43,7 @@
             "elm-explorations/test": "1.2.2"
         },
         "indirect": {
-            "avh4/elm-fifo": "1.0.4",
-            "elm/random": "1.0.0"
+            "avh4/elm-fifo": "1.0.4"
         }
     }
 }

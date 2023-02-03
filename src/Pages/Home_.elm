@@ -102,9 +102,9 @@ update shared msg model =
 
         UpdatedEntries ->
             ( model
-            , [ Bridge.GetDraft shared.zone |> AtHome |> sendToBackend
-              ]
-                |> Cmd.batch
+            , Bridge.GetDraft shared.zone
+                |> AtHome
+                |> sendToBackend
             )
 
         UpdatedDraft { draft, toBackend } ->
@@ -366,7 +366,7 @@ view shared model =
                 , model.entries
                     |> List.map
                         (\( user, posix, entry ) ->
-                            View.Entry.withUser ( user, posix, entry )
+                            View.Entry.toHtml (Just user) posix entry
                         )
                     |> Layout.column [ Layout.spacing 4 ]
                 ]

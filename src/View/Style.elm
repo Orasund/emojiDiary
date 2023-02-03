@@ -77,6 +77,16 @@ inputWithType args =
         |> Layout.el []
 
 
+linkTo : String -> Html msg -> Html msg
+linkTo href label =
+    Layout.linkTo href [ Attr.class "link link-primary" ] label
+
+
+linkToNewTab : String -> Html msg -> Html msg
+linkToNewTab href label =
+    Layout.linkToNewTab href [ Attr.class "link link-primary" ] label
+
+
 button : { onPress : Maybe msg, label : String } -> Html msg
 button args =
     Html.text args.label

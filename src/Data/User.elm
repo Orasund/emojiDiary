@@ -8,6 +8,7 @@ module Data.User exposing (..)
 
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
+import Sha256
 
 
 type alias UserInfo =
@@ -22,6 +23,7 @@ type alias UserFull =
     , bio : Maybe String
     , image : String
     , password : String
+    , passwordHash : String
     , trackers : List (Id Tracker)
     }
 
@@ -36,6 +38,7 @@ new args =
     , bio = Nothing
     , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
     , password = args.password
+    , passwordHash = Sha256.sha256 args.password
     , trackers = []
     }
 
