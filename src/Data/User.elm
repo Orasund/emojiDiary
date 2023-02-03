@@ -22,7 +22,6 @@ type alias UserFull =
     { username : String
     , bio : Maybe String
     , image : String
-    , password : String
     , passwordHash : String
     , trackers : List (Id Tracker)
     }
@@ -32,13 +31,12 @@ type alias UserId =
     Int
 
 
-new : { username : String, password : String } -> UserFull
+new : { username : String, passwordHash : String } -> UserFull
 new args =
     { username = args.username
     , bio = Nothing
     , image = "https://static.productionready.io/images/smiley-cyrus.jpg"
-    , password = args.password
-    , passwordHash = Sha256.sha256 args.password
+    , passwordHash = args.passwordHash
     , trackers = []
     }
 

@@ -11,6 +11,7 @@ import Html.Events
 import Layout
 import Page
 import Request exposing (Request)
+import Sha256
 import Shared
 import Utils.Route
 import View exposing (View)
@@ -98,9 +99,9 @@ update req msg model =
                 , (Effect.fromCmd << sendToBackend) <|
                     UserRegistration_Register
                         { params =
-                            { username = model.username
+                            { username = String.toLower model.username
                             , email = model.email
-                            , password = model.password
+                            , password = Sha256.sha256 model.password
                             }
                         }
                 )

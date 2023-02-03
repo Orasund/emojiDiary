@@ -12,6 +12,7 @@ import Layout
 import Page
 import Pages.Register exposing (Msg(..))
 import Request exposing (Request)
+import Sha256
 import Shared
 import Utils.Route
 import View exposing (View)
@@ -88,8 +89,8 @@ update req msg model =
             , (Effect.fromCmd << sendToBackend) <|
                 UserAuthentication_Login
                     { params =
-                        { username = model.username
-                        , password = model.password
+                        { username = String.toLower model.username
+                        , password = Sha256.sha256 model.password
                         }
                     }
             )

@@ -1,4 +1,4 @@
-module Data.Store exposing (Id, Store, empty, get, insert, insertAll, read, remove, toList, update)
+module Data.Store exposing (Id, Store, empty, get, insert, insertAll, read, remove, toList, unsafeWrite, update)
 
 import Dict exposing (Dict)
 
@@ -68,3 +68,8 @@ read (Id key) =
 toList : Store a -> List ( Id a, a )
 toList store =
     store.items |> Dict.toList |> List.map (Tuple.mapFirst Id)
+
+
+unsafeWrite : Int -> Id a
+unsafeWrite key =
+    Id key

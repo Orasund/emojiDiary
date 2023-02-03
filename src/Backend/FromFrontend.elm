@@ -18,6 +18,7 @@ import Pages.Profile.UserId_
 import Pages.Register
 import Pages.Settings
 import Set
+import Sha256
 import Task
 import Time exposing (Posix, Zone)
 import Time.Extra exposing (Interval(..))
@@ -315,7 +316,7 @@ update sessionId clientId msg model =
                             )
                         |> Maybe.map
                             (\( id, u ) ->
-                                if u.password == params.password then
+                                if u.passwordHash == params.password then
                                     ( Success (Data.User.toUser ( id, u ))
                                     , renewSession id sessionId clientId
                                     )
@@ -345,7 +346,10 @@ update sessionId clientId msg model =
 
                             user_ : UserFull
                             user_ =
-                                Data.User.new { username = params.username, password = params.password }
+                                Data.User.new
+                                    { username = params.username
+                                    , passwordHash = params.password
+                                    }
                                     |> (\u -> { u | trackers = trackerIds })
 
                             ( store, userId ) =
@@ -373,7 +377,10 @@ update sessionId clientId msg model =
                                         | username = params.username
 
                                         -- , email = params.email
-                                        , password = params.password |> Maybe.withDefault user.password
+                                        , passwordHash =
+                                            params.password
+                                                |> Maybe.map Sha256.sha256
+                                                |> Maybe.withDefault user.passwordHash
                                         , image = params.image
                                     }
                             in
