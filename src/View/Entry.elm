@@ -13,7 +13,14 @@ import View.Date
 import View.Style
 
 
-draft : { onSubmit : EntryContent -> msg, onBlur : msg, zone : Zone } -> Maybe ( Maybe Posix, Zone, EntryContent ) -> Html msg
+draft :
+    { onSubmit : EntryContent -> msg
+    , onBlur : msg
+    , zone : Zone
+    , toggleEmojiPicker : msg
+    }
+    -> Maybe ( Maybe Posix, Zone, EntryContent )
+    -> Html msg
 draft args maybe =
     let
         entryDraft =
@@ -25,6 +32,7 @@ draft args maybe =
             { name = "Mood"
             , content = entryDraft.content
             , onInput = \string -> { entryDraft | content = string } |> args.onSubmit
+            , toggleEmojiPicker = args.toggleEmojiPicker
             }
         , maybe
             |> Maybe.andThen

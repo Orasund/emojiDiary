@@ -9,9 +9,14 @@ import Layout
 import View.Style
 
 
-new : { onInput : String -> msg } -> Html msg
+new : { onInput : String -> msg, toggleEmojiPicker : msg } -> Html msg
 new args =
-    [ View.Style.emojiInput { name = "Emoji", content = "", onInput = args.onInput }
+    [ View.Style.emojiInput
+        { name = "Emoji"
+        , content = ""
+        , onInput = args.onInput
+        , toggleEmojiPicker = args.toggleEmojiPicker
+        }
     , "new Tracker" |> Html.text |> Layout.el [ Layout.alignAtCenter ]
     ]
         |> Layout.row [ Layout.spacing 8 ]

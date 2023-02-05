@@ -8,6 +8,7 @@ import Data.Entry exposing (EntryContent)
 import Data.Store exposing (Id)
 import Data.Tracker exposing (Tracker)
 import Data.User exposing (UserInfo)
+import EmojiPicker
 import Html exposing (..)
 import Layout
 import Page
@@ -21,6 +22,14 @@ import View.Date
 import View.Entry
 import View.Style
 import View.Tracker
+
+
+emojiPickerDraftId =
+    "Draft"
+
+
+emojiPickerTrackerId =
+    "Tracker"
 
 
 page : Shared.Model -> Request -> Page.With Model Msg
@@ -45,6 +54,8 @@ type alias Model =
     , focusedTracker : Maybe Int
     , time : Maybe Posix
     , postedYesterday : Bool
+    , emojiPicker : EmojiPicker.Model
+    , emojiPickerId : String
     }
 
 
@@ -60,6 +71,13 @@ init shared =
             , focusedTracker = Nothing
             , time = Nothing
             , postedYesterday = True
+            , emojiPicker =
+                EmojiPicker.init
+                    { offsetX = 0
+                    , offsetY = 0
+                    , closeOnSelect = True
+                    }
+            , emojiPickerId = ""
             }
     in
     ( model
@@ -90,6 +108,49 @@ type Msg
     | EditedTracker ( Int, Tracker )
     | FinishedEditingTracker Int
     | GotTime Posix
+    | EmojiPickerSpecific String EmojiPicker.Msg
+
+
+updateDraft : Shared.Model -> { draft : EntryContent, toBackend : Bool } -> Model -> ( Model, Cmd Msg )
+updateDraft shared { draft, toBackend } model =
+    let
+        entryDraft =
+            { draft
+                | content = String.left 6 draft.content
+                , description = String.left 50 draft.description
+            }
+
+        shouldDelete =
+            String.isEmpty draft.content
+    in
+    ( { model
+        | entryDraft =
+            if shouldDelete then
+                Nothing
+
+            else
+                case model.entryDraft of
+                    Just ( posix, zone, _ ) ->
+                        Just ( posix, zone, entryDraft )
+
+                    Nothing ->
+                        Just ( Nothing, shared.zone, entryDraft )
+      }
+    , if toBackend then
+        model.entryDraft
+            |> Bridge.DraftUpdated
+            |> AtHome
+            |> sendToBackend
+
+      else
+        Cmd.none
+    )
+
+
+addTracker : String -> Cmd Msg
+addTracker emoji =
+    AtHome (Bridge.AddTracker emoji)
+        |> sendToBackend
 
 
 update : Shared.Model -> Msg -> Model -> ( Model, Cmd Msg )
@@ -107,39 +168,8 @@ update shared msg model =
                 |> sendToBackend
             )
 
-        UpdatedDraft { draft, toBackend } ->
-            let
-                entryDraft =
-                    { draft
-                        | content = String.left 6 draft.content
-                        , description = String.left 50 draft.description
-                    }
-
-                shouldDelete =
-                    String.isEmpty draft.content
-            in
-            ( { model
-                | entryDraft =
-                    if shouldDelete then
-                        Nothing
-
-                    else
-                        case model.entryDraft of
-                            Just ( posix, zone, _ ) ->
-                                Just ( posix, zone, entryDraft )
-
-                            Nothing ->
-                                Just ( Nothing, shared.zone, entryDraft )
-              }
-            , if toBackend then
-                model.entryDraft
-                    |> Bridge.DraftUpdated
-                    |> AtHome
-                    |> sendToBackend
-
-              else
-                Cmd.none
-            )
+        UpdatedDraft args ->
+            updateDraft shared args model
 
         FinishedUpdatingDraft ->
             ( model
@@ -162,8 +192,7 @@ update shared msg model =
 
         AddedTracker emoji ->
             ( model
-            , AtHome (Bridge.AddTracker emoji)
-                |> sendToBackend
+            , addTracker emoji
             )
 
         DeletedTracker id ->
@@ -225,6 +254,44 @@ update shared msg model =
         GotTime time ->
             ( { model | time = Just time }, Cmd.none )
 
+        EmojiPickerSpecific tag m ->
+            model.emojiPicker
+                |> EmojiPicker.update m
+                |> (\( emojiPicker, cmd ) ->
+                        { model
+                            | emojiPicker = emojiPicker
+                            , emojiPickerId = tag
+                        }
+                            |> (\newModel ->
+                                    case m of
+                                        EmojiPicker.Select string ->
+                                            if tag == emojiPickerDraftId then
+                                                newModel.entryDraft
+                                                    |> Maybe.map (\( _, _, draft ) -> draft)
+                                                    |> Maybe.withDefault Data.Entry.newDraft
+                                                    |> (\draft ->
+                                                            updateDraft shared
+                                                                { draft = { draft | content = draft.content ++ string }
+                                                                , toBackend = True
+                                                                }
+                                                                newModel
+                                                       )
+
+                                            else if tag == emojiPickerTrackerId then
+                                                ( newModel, addTracker string )
+
+                                            else
+                                                ( newModel, Cmd.none )
+
+                                        _ ->
+                                            ( newModel, Cmd.none )
+                               )
+                            |> Tuple.mapSecond
+                                (\newCmd ->
+                                    Cmd.batch [ newCmd, cmd |> Cmd.map (EmojiPickerSpecific tag) ]
+                                )
+                   )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -276,7 +343,10 @@ view shared model =
                         { onSubmit = \d -> UpdatedDraft { draft = d, toBackend = False }
                         , onBlur = FinishedUpdatingDraft
                         , zone = shared.zone
+                        , toggleEmojiPicker = EmojiPickerSpecific emojiPickerDraftId EmojiPicker.Toggle
                         }
+                , EmojiPicker.view model.emojiPicker
+                    |> Html.map (EmojiPickerSpecific model.emojiPickerId)
                 , model.entryDraft
                     |> Maybe.andThen (\( p, z, _ ) -> p |> Maybe.map (\posix -> ( posix, z )))
                     |> Maybe.map
@@ -348,7 +418,10 @@ view shared model =
                             , onEdit = EditedTracker
                             , focusedTracker = model.focusedTracker
                             }
-                  , View.Tracker.new { onInput = AddedTracker }
+                  , View.Tracker.new
+                        { onInput = AddedTracker
+                        , toggleEmojiPicker = EmojiPickerSpecific emojiPickerTrackerId EmojiPicker.Toggle
+                        }
                   ]
                     |> Layout.column [ Layout.spacing 8 ]
                 ]

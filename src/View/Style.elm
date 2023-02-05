@@ -20,9 +20,15 @@ itemHeading string =
         |> Layout.heading4 [ Attr.style "font-weight" "bold" ]
 
 
-emojiInput : { name : String, content : String, onInput : String -> msg } -> Html msg
+emojiInput :
+    { name : String
+    , content : String
+    , onInput : String -> msg
+    , toggleEmojiPicker : msg
+    }
+    -> Html msg
 emojiInput args =
-    [ Html.span [] [ Layout.el [ Attr.class "bi bi-emoji-smile" ] Layout.none ]
+    [ emojiButton args.toggleEmojiPicker
     , Html.input
         [ Attr.class "input w-full max-w-xs"
         , Attr.placeholder args.name
@@ -91,6 +97,14 @@ button : { onPress : Maybe msg, label : String } -> Html msg
 button args =
     Html.text args.label
         |> Layout.buttonEl { onPress = args.onPress, label = args.label }
+            [ Attr.class "btn btn-primary" ]
+
+
+emojiButton : msg -> Html msg
+emojiButton onPress =
+    Layout.none
+        |> Layout.el [ Attr.class "bi bi-emoji-smile" ]
+        |> Layout.buttonEl { onPress = Just onPress, label = "Open Emoji Picker" }
             [ Attr.class "btn btn-primary" ]
 
 
