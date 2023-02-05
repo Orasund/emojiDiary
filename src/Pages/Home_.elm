@@ -398,6 +398,7 @@ view shared model =
                 , [ View.Style.itemHeading "Trackers"
                   , model.trackers
                         |> Array.toList
+                        |> List.reverse
                         |> View.Tracker.list
                             { onDelete = DeletedTracker
                             , onClick =
